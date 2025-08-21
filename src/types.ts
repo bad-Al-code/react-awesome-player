@@ -1,16 +1,18 @@
-import type { Level } from "hls.js";
-import type React from "react";
+import type { Level } from 'hls.js';
+import type React from 'react';
 
 type BasePlayerProps = {
-  /** An optional title for the video, displayed at the top-left of the player. */
   title?: string;
-  /** An array of subtitle track objects to be added to the video. */
   subtitles?: {
     lang: string;
     label: string;
     src: string;
   }[];
-  /** If true, enables the theatre mode feature for this player. */
+  /**
+   * If true, enables the theatre mode feature.
+   * IMPORTANT: Requires a global CSS class `.theater-mode-active` to be styled in the parent application.
+   * @default false
+   */
   theaterModeEnabled?: boolean;
 };
 
@@ -32,6 +34,10 @@ type PlaylistVideoPlayerProps = BasePlayerProps & {
   onVideoChange: (newIndex: number) => void;
 };
 
+/**
+ * Props for the VideoPlayer component.
+ * Can be configured for a single video source (`src`) or a playlist.
+ */
 export type VideoPlayerProps =
   | SingleVideoPlayerProps
   | PlaylistVideoPlayerProps;
@@ -44,7 +50,7 @@ export interface TimelineProps {
   onMouseLeave: () => void;
 }
 
-export type SettingsMenuType = "main" | "speed" | "quality";
+export type SettingsMenuType = 'main' | 'speed' | 'quality';
 
 export interface SettingsMenuProps {
   playbackSpeed: number;
