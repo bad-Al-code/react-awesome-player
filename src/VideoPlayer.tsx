@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { cn, formatTime } from '@/lib/utils';
-import Hls, { Level } from 'hls.js';
-import { Play } from 'lucide-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { PlayerControls } from './PlayerControls';
-import { SettingsMenu } from './SettingsMenu';
-import { VideoPlayerProps } from './types';
+import type { Level } from "hls.js";
+import Hls from "hls.js";
+import { Play } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { PlayerControls } from "./PlayerControls";
+import { SettingsMenu } from "./SettingsMenu";
+import type { VideoPlayerProps } from "./types";
 
 function TheaterBackdrop({ onClick }: { onClick: () => void }) {
   return createPortal(
@@ -16,6 +16,13 @@ function TheaterBackdrop({ onClick }: { onClick: () => void }) {
   );
 }
 
+const formatTime = (timeInSeconds: number) => {
+  const date = new Date(0);
+  date.setSeconds(timeInSeconds);
+  const timeString = date.toISOString().substr(11, 8);
+  return timeString.startsWith("00:") ? timeString.substr(3) : timeString;
+};
+
 export function VideoPlayer({
   src,
   title,
@@ -23,8 +30,6 @@ export function VideoPlayer({
   playlist = [],
   currentVideoIndex = 0,
   onVideoChange = () => {},
-  onToggleTheaterMode = () => {},
-  toggleTheaterMode = () => {},
   theaterModeEnabled = false,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -43,13 +48,13 @@ export function VideoPlayer({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [areSubtitlesEnabled, setAreSubtitlesEnabled] = useState(false);
-  const [areControlsVisible, setAreControlsVisible] = useState(false);
+  const [areControlsVisible, setAreControlsVisible] = useState(true);
   const [availableQualities, setAvailableQualities] = useState<Level[]>([]);
   const [currentQuality, setCurrentQuality] = useState<number>(-1);
   const [isMiniPlayer, setIsMiniPlayer] = useState(false);
   const [isAutoplayEnabled, setIsAutoplayEnabled] = useState(false);
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
-  const [tooltipContent, setTooltipContent] = useState('');
+  const [tooltipContent, setTooltipContent] = useState("");
   const [tooltipPosition, setTooltipPosition] = useState(0);
   const [hasStarted, setHasStarted] = useState(false);
   const [isTheaterMode, setIsTheaterMode] = useState(false);
@@ -79,14 +84,9 @@ export function VideoPlayer({
       hls.attachMedia(videoElement);
       hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
         setAvailableQualities([...data.levels]);
-
-        // videoElement.play();
       });
-    } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+    } else if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
       videoElement.src = currentSrc;
-      videoElement.addEventListener('loadedmetadata', () => {
-        // videoElement.play();
-      });
     }
 
     return () => {
@@ -98,16 +98,14 @@ export function VideoPlayer({
   }, [currentSrc]);
 
   const handleNext = useCallback(() => {
-    const nextIndex = currentVideoIndex + 1;
-    if (playlist && nextIndex < playlist.length) {
-      onVideoChange(nextIndex);
+    if (playlist && currentVideoIndex < playlist.length - 1) {
+      onVideoChange(currentVideoIndex + 1);
     }
   }, [currentVideoIndex, playlist, onVideoChange]);
 
   const handlePrevious = useCallback(() => {
-    const prevIndex = currentVideoIndex - 1;
-    if (playlist && prevIndex >= 0) {
-      onVideoChange(prevIndex);
+    if (playlist && currentVideoIndex > 0) {
+      onVideoChange(currentVideoIndex - 1);
     }
   }, [currentVideoIndex, playlist, onVideoChange]);
 
@@ -135,19 +133,19 @@ export function VideoPlayer({
     const handleLoadedMetadata = () => {
       setDuration(video.duration);
     };
-    video.addEventListener('timeupdate', handleTimeUpdate);
-    video.addEventListener('progress', handleProgress);
-    video.addEventListener('loadedmetadata', handleLoadedMetadata);
-    video.addEventListener('ended', handleEnded);
-    video.addEventListener('play', () => setIsPlaying(true));
-    video.addEventListener('pause', () => setIsPlaying(false));
+    video.addEventListener("timeupdate", handleTimeUpdate);
+    video.addEventListener("progress", handleProgress);
+    video.addEventListener("loadedmetadata", handleLoadedMetadata);
+    video.addEventListener("ended", handleEnded);
+    video.addEventListener("play", () => setIsPlaying(true));
+    video.addEventListener("pause", () => setIsPlaying(false));
     return () => {
-      video.removeEventListener('timeupdate', handleTimeUpdate);
-      video.removeEventListener('progress', handleProgress);
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      video.removeEventListener('ended', handleEnded);
-      video.removeEventListener('play', () => setIsPlaying(true));
-      video.removeEventListener('pause', () => setIsPlaying(false));
+      video.removeEventListener("timeupdate", handleTimeUpdate);
+      video.removeEventListener("progress", handleProgress);
+      video.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      video.removeEventListener("ended", handleEnded);
+      video.removeEventListener("play", () => setIsPlaying(true));
+      video.removeEventListener("pause", () => setIsPlaying(false));
     };
   }, [isAutoplayEnabled, handleNext]);
 
@@ -169,7 +167,6 @@ export function VideoPlayer({
     if (!hasStarted) {
       setHasStarted(true);
     }
-
     if (videoRef.current) {
       isPlaying ? videoRef.current.pause() : videoRef.current.play();
     }
@@ -183,8 +180,6 @@ export function VideoPlayer({
       const seekFraction = clickX / rect.width;
       const seekTime = seekFraction * duration;
       videoRef.current.currentTime = seekTime;
-      setProgress(seekFraction * 100);
-      setCurrentTime(seekTime);
     }
   };
 
@@ -232,11 +227,10 @@ export function VideoPlayer({
   const toggleSubtitles = () => {
     const video = videoRef.current;
     if (!video || subtitles.length === 0) return;
-
     const newSubtitleState = !areSubtitlesEnabled;
     for (let i = 0; i < video.textTracks.length; i++) {
       video.textTracks[i].mode =
-        newSubtitleState && i === 0 ? 'showing' : 'hidden';
+        newSubtitleState && i === 0 ? "showing" : "hidden";
     }
     setAreSubtitlesEnabled(newSubtitleState);
   };
@@ -251,7 +245,7 @@ export function VideoPlayer({
     const video = videoRef.current;
     if (!video) return;
     if (!document.pictureInPictureEnabled) {
-      console.warn('Picture-in-Picture is not supported in this browser.');
+      console.warn("Picture-in-Picture is not supported in this browser.");
       return;
     }
     try {
@@ -263,7 +257,7 @@ export function VideoPlayer({
         setIsMiniPlayer(true);
       }
     } catch (error) {
-      console.error('Error toggling Picture-in-Picture mode:', error);
+      console.error("Error toggling Picture-in-Picture mode:", error);
     }
   }, []);
 
@@ -294,7 +288,7 @@ export function VideoPlayer({
       if (isPlaying && !isSettingsOpen) {
         setAreControlsVisible(false);
       }
-    }, 5000);
+    }, 3000);
   }, [isPlaying, isSettingsOpen]);
 
   const handleMouseMove = () => {
@@ -322,21 +316,19 @@ export function VideoPlayer({
   const currentQualityLabel =
     currentQuality === -1
       ? `Auto (${
-          hlsRef.current?.levels[hlsRef.current?.currentLevel]?.height ?? '...'
+          hlsRef.current?.levels[hlsRef.current?.currentLevel]?.height ?? "..."
         }p)`
       : `${availableQualities[currentQuality]?.height}p`;
 
   useEffect(() => {
     if (!theaterModeEnabled) return;
-
     if (isTheaterMode) {
-      document.body.classList.add('theater-mode-active');
+      document.body.classList.add("theater-mode-active");
     } else {
-      document.body.classList.remove('theater-mode-active');
+      document.body.classList.remove("theater-mode-active");
     }
-
     return () => {
-      document.body.classList.remove('theater-mode-active');
+      document.body.classList.remove("theater-mode-active");
     };
   }, [isTheaterMode, theaterModeEnabled]);
 
@@ -344,23 +336,23 @@ export function VideoPlayer({
     const video = videoRef.current;
     if (!video) return;
     const handleLeavePiP = () => setIsMiniPlayer(false);
-    video.addEventListener('leavepictureinpicture', handleLeavePiP);
+    video.addEventListener("leavepictureinpicture", handleLeavePiP);
     return () =>
-      video.removeEventListener('leavepictureinpicture', handleLeavePiP);
+      video.removeEventListener("leavepictureinpicture", handleLeavePiP);
   }, []);
 
   useEffect(() => {
     const handleFullScreenChange = () =>
       setIsFullScreen(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', handleFullScreenChange);
+    document.addEventListener("fullscreenchange", handleFullScreenChange);
     return () =>
-      document.removeEventListener('fullscreenchange', handleFullScreenChange);
+      document.removeEventListener("fullscreenchange", handleFullScreenChange);
   }, []);
 
   useEffect(() => {
     if (!isSettingsOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsSettingsOpen(false);
+      if (e.key === "Escape") setIsSettingsOpen(false);
     };
     const handleClickOutside = (e: MouseEvent) => {
       if (
@@ -370,11 +362,11 @@ export function VideoPlayer({
         setIsSettingsOpen(false);
       }
     };
-    document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isSettingsOpen]);
 
@@ -392,89 +384,89 @@ export function VideoPlayer({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       switch (e.key) {
-        case ' ':
-        case 'k':
-        case 'K':
+        case " ":
+        case "k":
+        case "K":
           e.preventDefault();
           togglePlay();
           break;
-        case 'N':
+        case "N":
           handleNext();
           break;
-        case 'P':
+        case "P":
           handlePrevious();
           break;
-        case 'm':
-        case 'M':
+        case "m":
+        case "M":
           toggleMute();
           break;
-        case 'f':
-        case 'F':
+        case "f":
+        case "F":
           toggleFullScreen();
           break;
-        case 'c':
-        case 'C':
+        case "c":
+        case "C":
           toggleSubtitles();
           break;
-        case 't':
-        case 'T':
+        case "t":
+        case "T":
           handleToggleTheaterMode();
           break;
-        case 'i':
-        case 'I':
+        case "i":
+        case "I":
           toggleMiniPlayer();
           break;
-        case 'ArrowRight':
+        case "ArrowRight":
           seekRelative(5);
           break;
-        case 'ArrowLeft':
+        case "ArrowLeft":
           seekRelative(-5);
           break;
-        case 'ArrowUp':
+        case "ArrowUp":
           e.preventDefault();
           handleVolumeChange(volume + 0.05);
           break;
-        case 'ArrowDown':
+        case "ArrowDown":
           e.preventDefault();
           handleVolumeChange(volume - 0.05);
           break;
-        case '1':
+        case "1":
           seekToPercentage(10);
           break;
-        case '2':
+        case "2":
           seekToPercentage(20);
           break;
-        case '3':
+        case "3":
           seekToPercentage(30);
           break;
-        case '4':
+        case "4":
           seekToPercentage(40);
           break;
-        case '5':
+        case "5":
           seekToPercentage(50);
           break;
-        case '6':
+        case "6":
           seekToPercentage(60);
           break;
-        case '7':
+        case "7":
           seekToPercentage(70);
           break;
-        case '8':
+        case "8":
           seekToPercentage(80);
           break;
-        case '9':
+        case "9":
           seekToPercentage(90);
           break;
-        case '0':
+        case "0":
           seekToPercentage(0);
           break;
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
     handleNext,
     handlePrevious,
@@ -482,28 +474,24 @@ export function VideoPlayer({
     toggleMute,
     toggleFullScreen,
     toggleSubtitles,
-    toggleTheaterMode,
+    handleToggleTheaterMode,
     toggleMiniPlayer,
     seekRelative,
     seekToPercentage,
     volume,
     handleVolumeChange,
-    handleToggleTheaterMode,
   ]);
 
   return (
     <>
-      {isTheaterMode && <TheaterBackdrop onClick={toggleTheaterMode} />}
-
+      {isTheaterMode && <TheaterBackdrop onClick={handleToggleTheaterMode} />}
       <div
         ref={playerContainerRef}
-        className={cn(
-          'group transition-all duration-300 focus:outline-none',
+        className={`group transition-all duration-300 focus:outline-none ${
           isTheaterMode
-            ? 'fixed top-0 left-0 z-50 w-full'
-            : 'relative mx-auto w-full max-w-4xl overflow-hidden rounded-lg',
-          !areControlsVisible && isPlaying && 'cursor-none'
-        )}
+            ? "fixed top-0 left-0 z-50 w-full"
+            : "relative mx-auto w-full max-w-4xl overflow-hidden rounded-lg"
+        } ${!areControlsVisible && isPlaying ? "cursor-none" : ""}`}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         tabIndex={0}
@@ -511,18 +499,16 @@ export function VideoPlayer({
         <div className="relative aspect-video w-full bg-black">
           {title && (
             <div
-              className={cn(
-                'absolute top-0 right-0 left-0 z-20 bg-gradient-to-b from-black/60 to-transparent p-4 transition-opacity duration-300',
-                areControlsVisible ? 'opacity-100' : 'opacity-0'
-              )}
+              className={`absolute top-0 right-0 left-0 z-20 bg-gradient-to-b from-black/60 to-transparent p-4 transition-opacity duration-300 ${
+                areControlsVisible ? "opacity-100" : "opacity-0"
+              }`}
             >
               <h1 className="truncate text-xl font-bold text-white">{title}</h1>
             </div>
           )}
-
           <video
             ref={videoRef}
-            className={`h-full w-full ${isMiniPlayer ? 'invisible' : ''}`}
+            className={`h-full w-full ${isMiniPlayer ? "invisible" : ""}`}
             playsInline
             onClick={hasStarted ? togglePlay : undefined}
             onDoubleClick={toggleFullScreen}
@@ -540,7 +526,6 @@ export function VideoPlayer({
               />
             ))}
           </video>
-
           {!hasStarted && (
             <div className="absolute inset-0 flex items-center justify-center">
               <button
@@ -549,17 +534,15 @@ export function VideoPlayer({
                 aria-label="Play video"
                 title="Play video"
               >
-                <Play className="fill-foreground h-6 w-6 pl-0.5 sm:h-10 sm:w-10 sm:pl-1.5" />
+                <Play className="fill-white h-10 w-10 pl-2 sm:h-16 sm:w-16" />
               </button>
             </div>
           )}
-
           {isMiniPlayer && (
             <div className="absolute inset-0 flex items-center justify-center bg-black text-white">
               <p>This video is playing in Picture-in-Picture mode.</p>
             </div>
           )}
-
           {isSettingsOpen && (
             <SettingsMenu
               playbackSpeed={playbackSpeed}
@@ -570,7 +553,6 @@ export function VideoPlayer({
               currentQualityLabel={currentQualityLabel}
             />
           )}
-
           <PlayerControls
             isPlaying={isPlaying}
             onPlayPause={togglePlay}
@@ -603,110 +585,6 @@ export function VideoPlayer({
           />
         </div>
       </div>
-    </>
-  );
-}
-
-export function TestVideoPlayer() {
-  const lessonTitle = 'What is Data Science?';
-  const singleVideoSrc = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
-  const videoSubtitles = [
-    {
-      lang: 'en',
-      label: 'English',
-      src: 'https://cdn.plyr.io/static/demo/View_From_A_Blue_Moon_Trailer-HD.en.vtt',
-    },
-  ];
-
-  const [isTheaterMode1, setIsTheaterMode1] = useState(false);
-  const toggleTheaterMode1 = () => setIsTheaterMode1(!isTheaterMode1);
-
-  const samplePlaylist = [
-    'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-    'https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8',
-    'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8',
-  ];
-
-  const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
-  const [isTheaterMode2, setIsTheaterMode2] = useState(false);
-  const [isPageInTheaterMode2, setIsPageInTheaterMode2] = useState(false);
-
-  const handleVideoChange = (newIndex: number) => {
-    setCurrentVideoIndex(newIndex);
-  };
-  const togglePageTheaterMode2 = () => setIsPageInTheaterMode2((prev) => !prev);
-
-  return (
-    <>
-      {isTheaterMode1 && (
-        <div
-          className="fixed inset-0 z-40 bg-black/90"
-          onClick={toggleTheaterMode1}
-        />
-      )}
-      {isTheaterMode2 && (
-        <div
-          className="fixed inset-0 z-40 bg-black/90"
-          onClick={togglePageTheaterMode2}
-        />
-      )}
-
-      <main className="container mx-auto">
-        <h1 className="mb-4 text-4xl font-bold">Video Player Test Page</h1>
-        <p className="text-gray-600">
-          This page demonstrates the VideoPlayer component in different
-          scenarios.
-        </p>
-
-        <div className="my-12">
-          <h2 className="mb-4 border-b pb-2 text-2xl font-semibold">
-            Scenario 1: Single Video with Subtitles
-          </h2>
-          <div className="mt-4">
-            <VideoPlayer
-              src={singleVideoSrc}
-              title={lessonTitle}
-              subtitles={videoSubtitles}
-              isTheaterMode={isTheaterMode1}
-              // onToggleTheaterMode={toggleTheaterMode1}
-              theaterModeEnabled={true}
-            />
-          </div>
-          <div
-            className={`transition-all duration-300 ${isTheaterMode1 ? 'mt-[56.25vw]' : 'mt-4'}`}
-          >
-            <h3 className="text-xl font-bold">About This Video</h3>
-            <p>
-              This content is pushed down when theatre mode is active for the
-              player above.
-            </p>
-          </div>
-        </div>
-
-        <div className="my-12">
-          <h2 className="mb-4 border-b pb-2 text-2xl font-semibold">
-            Scenario 2: Playlist Functionality
-          </h2>
-          <div className="mt-4">
-            <VideoPlayer
-              playlist={samplePlaylist}
-              currentVideoIndex={currentVideoIndex}
-              onVideoChange={handleVideoChange}
-              isTheaterMode={isTheaterMode2}
-              onToggleTheaterMode={togglePageTheaterMode2}
-            />
-          </div>
-          <div
-            className={`transition-all duration-300 ${isTheaterMode2 ? 'mt-[56.25vw]' : 'mt-4'}`}
-          >
-            <h3 className="text-xl font-bold">About This Playlist</h3>
-            <p>
-              This content is pushed down independently when the playlist player
-              enters theatre mode.
-            </p>
-          </div>
-        </div>
-      </main>
     </>
   );
 }

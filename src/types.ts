@@ -1,5 +1,40 @@
-import { Level } from 'hls.js';
-import React from 'react';
+import type { Level } from "hls.js";
+import type React from "react";
+
+type BasePlayerProps = {
+  /** An optional title for the video, displayed at the top-left of the player. */
+  title?: string;
+  /** An array of subtitle track objects to be added to the video. */
+  subtitles?: {
+    lang: string;
+    label: string;
+    src: string;
+  }[];
+  /** If true, enables the theatre mode feature for this player. */
+  theaterModeEnabled?: boolean;
+};
+
+type SingleVideoPlayerProps = BasePlayerProps & {
+  /** The URL of the single video source to play. */
+  src: string;
+  playlist?: never;
+  currentVideoIndex?: never;
+  onVideoChange?: never;
+};
+
+type PlaylistVideoPlayerProps = BasePlayerProps & {
+  src?: never;
+  /** An array of video source URLs to be played as a playlist. */
+  playlist: string[];
+  /** The index of the video in the playlist to start with. */
+  currentVideoIndex: number;
+  /** A callback function that is triggered when the video changes. */
+  onVideoChange: (newIndex: number) => void;
+};
+
+export type VideoPlayerProps =
+  | SingleVideoPlayerProps
+  | PlaylistVideoPlayerProps;
 
 export interface TimelineProps {
   progress: number;
@@ -9,7 +44,7 @@ export interface TimelineProps {
   onMouseLeave: () => void;
 }
 
-export type SettingsMenuType = 'main' | 'speed' | 'quality';
+export type SettingsMenuType = "main" | "speed" | "quality";
 
 export interface SettingsMenuProps {
   playbackSpeed: number;
@@ -46,33 +81,10 @@ export interface PlayerControlsProps {
   toggleAutoplay: () => void;
 }
 
-type BasePlayerProps = {
-  title?: string;
-  subtitles?: {
-    lang: string;
-    label: string;
-    src: string;
-  }[];
-  onToggleTheaterMode?: () => void;
-  isTheaterMode?: boolean;
-  toggleTheaterMode?: () => void;
-  theaterModeEnabled?: boolean;
-};
-
-type SingleVideoPlayerProps = BasePlayerProps & {
-  src: string;
-  playlist?: never;
-  currentVideoIndex?: never;
-  onVideoChange?: never;
-};
-
-type PlaylistVideoPlayerProps = BasePlayerProps & {
-  src?: never;
-  playlist: string[];
-  currentVideoIndex: number;
-  onVideoChange: (newIndex: number) => void;
-};
-
-export type VideoPlayerProps =
-  | SingleVideoPlayerProps
-  | PlaylistVideoPlayerProps;
+export interface PlayerControlsWithTooltipProps extends PlayerControlsProps {
+  isTooltipVisible: boolean;
+  tooltipContent: string;
+  tooltipPosition: number;
+  onTimelineHover: (positionX: number, timeFraction: number) => void;
+  onTimelineMouseLeave: () => void;
+}
