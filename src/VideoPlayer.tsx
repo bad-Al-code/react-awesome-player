@@ -1,18 +1,18 @@
-"use client";
+'use client';
 
-import type { Level } from "hls.js";
-import Hls from "hls.js";
-import { Play } from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { PlayerControls } from "./PlayerControls";
-import { SettingsMenu } from "./SettingsMenu";
-import type { VideoPlayerProps } from "./types";
+import type { Level } from 'hls.js';
+import Hls from 'hls.js';
+import { Play } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { PlayerControls } from './PlayerControls';
+import { SettingsMenu } from './SettingsMenu';
+import type { VideoPlayerProps } from './types';
 
 function TheaterBackdrop({ onClick }: { onClick: () => void }) {
   return createPortal(
     <div className="fixed inset-0 z-40 bg-black/90" onClick={onClick} />,
-    document.body
+    document.body,
   );
 }
 
@@ -20,7 +20,7 @@ const formatTime = (timeInSeconds: number) => {
   const date = new Date(0);
   date.setSeconds(timeInSeconds);
   const timeString = date.toISOString().substr(11, 8);
-  return timeString.startsWith("00:") ? timeString.substr(3) : timeString;
+  return timeString.startsWith('00:') ? timeString.substr(3) : timeString;
 };
 
 export function VideoPlayer({
@@ -54,7 +54,7 @@ export function VideoPlayer({
   const [isMiniPlayer, setIsMiniPlayer] = useState(false);
   const [isAutoplayEnabled, setIsAutoplayEnabled] = useState(false);
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
-  const [tooltipContent, setTooltipContent] = useState("");
+  const [tooltipContent, setTooltipContent] = useState('');
   const [tooltipPosition, setTooltipPosition] = useState(0);
   const [hasStarted, setHasStarted] = useState(false);
   const [isTheaterMode, setIsTheaterMode] = useState(false);
@@ -82,10 +82,10 @@ export function VideoPlayer({
       hlsRef.current = hls;
       hls.loadSource(currentSrc);
       hls.attachMedia(videoElement);
-      hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+      hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
         setAvailableQualities([...data.levels]);
       });
-    } else if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
+    } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
       videoElement.src = currentSrc;
     }
 
@@ -133,19 +133,19 @@ export function VideoPlayer({
     const handleLoadedMetadata = () => {
       setDuration(video.duration);
     };
-    video.addEventListener("timeupdate", handleTimeUpdate);
-    video.addEventListener("progress", handleProgress);
-    video.addEventListener("loadedmetadata", handleLoadedMetadata);
-    video.addEventListener("ended", handleEnded);
-    video.addEventListener("play", () => setIsPlaying(true));
-    video.addEventListener("pause", () => setIsPlaying(false));
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('progress', handleProgress);
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('ended', handleEnded);
+    video.addEventListener('play', () => setIsPlaying(true));
+    video.addEventListener('pause', () => setIsPlaying(false));
     return () => {
-      video.removeEventListener("timeupdate", handleTimeUpdate);
-      video.removeEventListener("progress", handleProgress);
-      video.removeEventListener("loadedmetadata", handleLoadedMetadata);
-      video.removeEventListener("ended", handleEnded);
-      video.removeEventListener("play", () => setIsPlaying(true));
-      video.removeEventListener("pause", () => setIsPlaying(false));
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('progress', handleProgress);
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('ended', handleEnded);
+      video.removeEventListener('play', () => setIsPlaying(true));
+      video.removeEventListener('pause', () => setIsPlaying(false));
     };
   }, [isAutoplayEnabled, handleNext]);
 
@@ -168,7 +168,11 @@ export function VideoPlayer({
       setHasStarted(true);
     }
     if (videoRef.current) {
-      isPlaying ? videoRef.current.pause() : videoRef.current.play();
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
     }
   }, [isPlaying, hasStarted]);
 
@@ -183,11 +187,13 @@ export function VideoPlayer({
     }
   };
 
-  const handleVolumeChange = (newVolume: number) => {
+  const handleVolumeChange = useCallback((newVolume: number) => {
     const clampedVolume = Math.max(0, Math.min(1, newVolume));
     setVolume(clampedVolume);
-    if (videoRef.current) videoRef.current.volume = clampedVolume;
-  };
+    if (videoRef.current) {
+      videoRef.current.volume = clampedVolume;
+    }
+  }, []);
 
   const toggleMute = useCallback(() => {
     if (volume > 0) {
@@ -200,19 +206,19 @@ export function VideoPlayer({
     }
   }, [volume, lastVolume]);
 
-  const toggleFullScreen = () => {
+  const toggleFullScreen = useCallback(() => {
     const playerContainer = playerContainerRef.current;
     if (!playerContainer) return;
     if (!document.fullscreenElement) {
       playerContainer.requestFullscreen().catch((err) => {
         console.error(
-          `Error attempting to enable full-screen mode: ${err.message} (${err.name})`
+          `Error attempting to enable full-screen mode: ${err.message} (${err.name})`,
         );
       });
     } else {
       document.exitFullscreen();
     }
-  };
+  }, []);
 
   const toggleSettings = () => setIsSettingsOpen(!isSettingsOpen);
 
@@ -224,16 +230,16 @@ export function VideoPlayer({
     }
   };
 
-  const toggleSubtitles = () => {
+  const toggleSubtitles = useCallback(() => {
     const video = videoRef.current;
     if (!video || subtitles.length === 0) return;
     const newSubtitleState = !areSubtitlesEnabled;
     for (let i = 0; i < video.textTracks.length; i++) {
       video.textTracks[i].mode =
-        newSubtitleState && i === 0 ? "showing" : "hidden";
+        newSubtitleState && i === 0 ? 'showing' : 'hidden';
     }
     setAreSubtitlesEnabled(newSubtitleState);
-  };
+  }, [areSubtitlesEnabled, subtitles]);
 
   const handleToggleTheaterMode = useCallback(() => {
     if (theaterModeEnabled) {
@@ -245,7 +251,7 @@ export function VideoPlayer({
     const video = videoRef.current;
     if (!video) return;
     if (!document.pictureInPictureEnabled) {
-      console.warn("Picture-in-Picture is not supported in this browser.");
+      console.warn('Picture-in-Picture is not supported in this browser.');
       return;
     }
     try {
@@ -257,7 +263,7 @@ export function VideoPlayer({
         setIsMiniPlayer(true);
       }
     } catch (error) {
-      console.error("Error toggling Picture-in-Picture mode:", error);
+      console.error('Error toggling Picture-in-Picture mode:', error);
     }
   }, []);
 
@@ -268,7 +274,7 @@ export function VideoPlayer({
         videoRef.current.currentTime = Math.max(0, Math.min(duration, newTime));
       }
     },
-    [duration]
+    [duration],
   );
 
   const seekToPercentage = useCallback(
@@ -277,7 +283,7 @@ export function VideoPlayer({
         videoRef.current.currentTime = duration * (percentage / 100);
       }
     },
-    [duration]
+    [duration],
   );
 
   const resetInactivityTimer = useCallback(() => {
@@ -316,19 +322,19 @@ export function VideoPlayer({
   const currentQualityLabel =
     currentQuality === -1
       ? `Auto (${
-          hlsRef.current?.levels[hlsRef.current?.currentLevel]?.height ?? "..."
+          hlsRef.current?.levels[hlsRef.current?.currentLevel]?.height ?? '...'
         }p)`
       : `${availableQualities[currentQuality]?.height}p`;
 
   useEffect(() => {
     if (!theaterModeEnabled) return;
     if (isTheaterMode) {
-      document.body.classList.add("theater-mode-active");
+      document.body.classList.add('theater-mode-active');
     } else {
-      document.body.classList.remove("theater-mode-active");
+      document.body.classList.remove('theater-mode-active');
     }
     return () => {
-      document.body.classList.remove("theater-mode-active");
+      document.body.classList.remove('theater-mode-active');
     };
   }, [isTheaterMode, theaterModeEnabled]);
 
@@ -336,23 +342,23 @@ export function VideoPlayer({
     const video = videoRef.current;
     if (!video) return;
     const handleLeavePiP = () => setIsMiniPlayer(false);
-    video.addEventListener("leavepictureinpicture", handleLeavePiP);
+    video.addEventListener('leavepictureinpicture', handleLeavePiP);
     return () =>
-      video.removeEventListener("leavepictureinpicture", handleLeavePiP);
+      video.removeEventListener('leavepictureinpicture', handleLeavePiP);
   }, []);
 
   useEffect(() => {
     const handleFullScreenChange = () =>
       setIsFullScreen(!!document.fullscreenElement);
-    document.addEventListener("fullscreenchange", handleFullScreenChange);
+    document.addEventListener('fullscreenchange', handleFullScreenChange);
     return () =>
-      document.removeEventListener("fullscreenchange", handleFullScreenChange);
+      document.removeEventListener('fullscreenchange', handleFullScreenChange);
   }, []);
 
   useEffect(() => {
     if (!isSettingsOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setIsSettingsOpen(false);
+      if (e.key === 'Escape') setIsSettingsOpen(false);
     };
     const handleClickOutside = (e: MouseEvent) => {
       if (
@@ -362,11 +368,11 @@ export function VideoPlayer({
         setIsSettingsOpen(false);
       }
     };
-    document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isSettingsOpen]);
 
@@ -384,89 +390,89 @@ export function VideoPlayer({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       switch (e.key) {
-        case " ":
-        case "k":
-        case "K":
+        case ' ':
+        case 'k':
+        case 'K':
           e.preventDefault();
           togglePlay();
           break;
-        case "N":
+        case 'N':
           handleNext();
           break;
-        case "P":
+        case 'P':
           handlePrevious();
           break;
-        case "m":
-        case "M":
+        case 'm':
+        case 'M':
           toggleMute();
           break;
-        case "f":
-        case "F":
+        case 'f':
+        case 'F':
           toggleFullScreen();
           break;
-        case "c":
-        case "C":
+        case 'c':
+        case 'C':
           toggleSubtitles();
           break;
-        case "t":
-        case "T":
+        case 't':
+        case 'T':
           handleToggleTheaterMode();
           break;
-        case "i":
-        case "I":
+        case 'i':
+        case 'I':
           toggleMiniPlayer();
           break;
-        case "ArrowRight":
+        case 'ArrowRight':
           seekRelative(5);
           break;
-        case "ArrowLeft":
+        case 'ArrowLeft':
           seekRelative(-5);
           break;
-        case "ArrowUp":
+        case 'ArrowUp':
           e.preventDefault();
           handleVolumeChange(volume + 0.05);
           break;
-        case "ArrowDown":
+        case 'ArrowDown':
           e.preventDefault();
           handleVolumeChange(volume - 0.05);
           break;
-        case "1":
+        case '1':
           seekToPercentage(10);
           break;
-        case "2":
+        case '2':
           seekToPercentage(20);
           break;
-        case "3":
+        case '3':
           seekToPercentage(30);
           break;
-        case "4":
+        case '4':
           seekToPercentage(40);
           break;
-        case "5":
+        case '5':
           seekToPercentage(50);
           break;
-        case "6":
+        case '6':
           seekToPercentage(60);
           break;
-        case "7":
+        case '7':
           seekToPercentage(70);
           break;
-        case "8":
+        case '8':
           seekToPercentage(80);
           break;
-        case "9":
+        case '9':
           seekToPercentage(90);
           break;
-        case "0":
+        case '0':
           seekToPercentage(0);
           break;
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     handleNext,
     handlePrevious,
@@ -489,9 +495,9 @@ export function VideoPlayer({
         ref={playerContainerRef}
         className={`group transition-all duration-300 focus:outline-none ${
           isTheaterMode
-            ? "fixed top-0 left-0 z-50 w-full"
-            : "relative mx-auto w-full max-w-4xl overflow-hidden rounded-lg"
-        } ${!areControlsVisible && isPlaying ? "cursor-none" : ""}`}
+            ? 'fixed top-0 left-0 z-50 w-full'
+            : 'relative mx-auto w-full max-w-4xl overflow-hidden rounded-lg'
+        } ${!areControlsVisible && isPlaying ? 'cursor-none' : ''}`}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         tabIndex={0}
@@ -500,7 +506,7 @@ export function VideoPlayer({
           {title && (
             <div
               className={`absolute top-0 right-0 left-0 z-20 bg-gradient-to-b from-black/60 to-transparent p-4 transition-opacity duration-300 ${
-                areControlsVisible ? "opacity-100" : "opacity-0"
+                areControlsVisible ? 'opacity-100' : 'opacity-0'
               }`}
             >
               <h1 className="truncate text-xl font-bold text-white">{title}</h1>
@@ -508,7 +514,7 @@ export function VideoPlayer({
           )}
           <video
             ref={videoRef}
-            className={`h-full w-full ${isMiniPlayer ? "invisible" : ""}`}
+            className={`h-full w-full ${isMiniPlayer ? 'invisible' : ''}`}
             playsInline
             onClick={hasStarted ? togglePlay : undefined}
             onDoubleClick={toggleFullScreen}
