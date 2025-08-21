@@ -1,5 +1,5 @@
 {
-  "name": "react-awesome-player",
+  "name": "@badalcodeorg/react-awesome-player",
   "private": false,
   "version": "0.1.0",
   "description": "A modern, feature-rich, and accessible video player for React.",
