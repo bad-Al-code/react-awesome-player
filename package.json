@@ -5,11 +5,11 @@
   "description": "A modern, feature-rich, and accessible video player for React.",
   "type": "module",
   "main": "./dist/react-awesome-player.umd.cjs",
-  "module": "./dist/react-awesome-player.js",
+  "module": "./dist/react-awesome-player.mjs",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/react-awesome-player.js",
+      "import": "./dist/react-awesome-player.es.mjs",
       "require": "./dist/react-awesome-player.umd.cjs"
     }
   },
@@ -29,8 +29,10 @@
     "react-dom": "^19.1.1"
   },
   "dependencies": {
+    "@tailwindcss/vite": "^4.1.12",
     "hls.js": "^1.6.10",
-    "lucide-react": "^0.540.0"
+    "lucide-react": "^0.540.0",
+    "tailwindcss": "^4.1.12"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",
