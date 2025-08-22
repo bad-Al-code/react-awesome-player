@@ -19,7 +19,16 @@ export default defineConfig({
       fileName: 'react-awesome-player',
     },
     rollupOptions: {
-      external: ['react', 'react-dom', 'hls.js', 'lucide-react'],
+      external: [
+        'react',
+        'react-dom',
+        'hls.js',
+        'lucide-react',
+        '@radix-ui/react-tooltip',
+        'tailwind-merge',
+        'clsx',
+        'class-variance-authority',
+      ],
       output: {
         globals: {
           react: 'React',
