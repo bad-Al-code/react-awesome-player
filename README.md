@@ -28,10 +28,12 @@ Here's how to get started with a single video:
 
 ```tsx
 import { VideoPlayer } from 'react-awesome-player';
-import 'react-awesome-player/dist/style.css'; // Don't forget to import the styles!
+import 'react-awesome-player/dist/style.css';
 
 function MyPage() {
   const videoSrc = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
+  const posterSrc =
+    'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS46SAdbg4xit4rTe4qzi7h7YErU441bJMk4A&s';
   const subtitles = [
     {
       lang: 'en',
@@ -47,6 +49,7 @@ function MyPage() {
         title="My Awesome Video"
         subtitles={subtitles}
         theaterModeEnabled={true}
+        poster={posterSrc}
       />
     </div>
   );
@@ -100,6 +103,7 @@ body.theater-mode-active .main-content-for-theater {
 | Prop                 | Type                         | Required | Description                                                                                |
 | -------------------- | ---------------------------- | -------- | ------------------------------------------------------------------------------------------ |
 | `src`                | `string`                     | Yes\*    | The URL of the single video source to play.                                                |
+| `poster`             | `string`                     | No\*     | An optional URL for a poster image to display before the video starts.                     |
 | `playlist`           | `string[]`                   | Yes\*    | An array of video source URLs for a playlist.                                              |
 | `currentVideoIndex`  | `number`                     | Yes\*\*  | The starting index for the playlist.                                                       |
 | `onVideoChange`      | `(newIndex: number) => void` | Yes\*\*  | Callback triggered when the video changes in a playlist.                                   |

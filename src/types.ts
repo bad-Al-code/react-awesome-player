@@ -8,6 +8,9 @@ type BasePlayerProps = {
     label: string;
     src: string;
   }[];
+  /** An optional URL for a poster image to display before the video starts. */
+  poster?: string;
+
   /**
    * If true, enables the theatre mode feature.
    * IMPORTANT: Requires a global CSS class `.theater-mode-active` to be styled in the parent application.

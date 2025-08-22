@@ -20,6 +20,7 @@ function TheaterBackdrop({ onClick }: { onClick: () => void }) {
 export function VideoPlayer({
   src,
   title,
+  poster,
   subtitles = [],
   playlist = [],
   currentVideoIndex = 0,
@@ -527,6 +528,7 @@ export function VideoPlayer({
             onDoubleClick={toggleFullScreen}
             crossOrigin="anonymous"
             autoPlay={false}
+            poster={poster}
           >
             {subtitles.map((sub, index) => (
               <track
@@ -540,11 +542,19 @@ export function VideoPlayer({
             ))}
           </video>
 
+          {!hasStarted && poster && (
+            <img
+              src={poster}
+              alt={title || 'Video poster'}
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          )}
+
           {!hasStarted && (
-            <div className="absolute inset-0 flex items-center justify-center">
+            <div className="absolute inset-0 z-10 flex items-center justify-center">
               <button
                 onClick={togglePlay}
-                className="cursor-pointer rounded-full bg-white/5 p-2 text-white transition-colors duration-300 hover:bg-white/20 sm:p-4"
+                className="cursor-pointer rounded-full bg-accent-foreground/50 p-2 text-white transition-colors duration-300 hover:bg-accent-foreground/60 sm:p-4"
                 aria-label="Play video"
                 title="Play video"
               >
