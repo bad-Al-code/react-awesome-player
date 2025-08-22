@@ -5,6 +5,7 @@ import Hls from 'hls.js';
 import { Play } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { cn, formatTime } from './lib/utils';
 import { PlayerControls } from './PlayerControls';
 import { SettingsMenu } from './SettingsMenu';
 import type { VideoPlayerProps } from './types';
@@ -15,13 +16,6 @@ function TheaterBackdrop({ onClick }: { onClick: () => void }) {
     document.body,
   );
 }
-
-const formatTime = (timeInSeconds: number) => {
-  const date = new Date(0);
-  date.setSeconds(timeInSeconds);
-  const timeString = date.toISOString().substr(11, 8);
-  return timeString.startsWith('00:') ? timeString.substr(3) : timeString;
-};
 
 export function VideoPlayer({
   src,
@@ -48,7 +42,7 @@ export function VideoPlayer({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [areSubtitlesEnabled, setAreSubtitlesEnabled] = useState(false);
-  const [areControlsVisible, setAreControlsVisible] = useState(true);
+  const [areControlsVisible, setAreControlsVisible] = useState(false);
   const [availableQualities, setAvailableQualities] = useState<Level[]>([]);
   const [currentQuality, setCurrentQuality] = useState<number>(-1);
   const [isMiniPlayer, setIsMiniPlayer] = useState(false);
@@ -84,9 +78,14 @@ export function VideoPlayer({
       hls.attachMedia(videoElement);
       hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
         setAvailableQualities([...data.levels]);
+
+        // videoElement.play();
       });
     } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
       videoElement.src = currentSrc;
+      videoElement.addEventListener('loadedmetadata', () => {
+        // videoElement.play();
+      });
     }
 
     return () => {
@@ -98,14 +97,16 @@ export function VideoPlayer({
   }, [currentSrc]);
 
   const handleNext = useCallback(() => {
-    if (playlist && currentVideoIndex < playlist.length - 1) {
-      onVideoChange(currentVideoIndex + 1);
+    const nextIndex = currentVideoIndex + 1;
+    if (playlist && nextIndex < playlist.length) {
+      onVideoChange(nextIndex);
     }
   }, [currentVideoIndex, playlist, onVideoChange]);
 
   const handlePrevious = useCallback(() => {
-    if (playlist && currentVideoIndex > 0) {
-      onVideoChange(currentVideoIndex - 1);
+    const prevIndex = currentVideoIndex - 1;
+    if (playlist && prevIndex >= 0) {
+      onVideoChange(prevIndex);
     }
   }, [currentVideoIndex, playlist, onVideoChange]);
 
@@ -167,12 +168,10 @@ export function VideoPlayer({
     if (!hasStarted) {
       setHasStarted(true);
     }
+
     if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-      } else {
-        videoRef.current.play();
-      }
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      isPlaying ? videoRef.current.pause() : videoRef.current.play();
     }
   }, [isPlaying, hasStarted]);
 
@@ -184,15 +183,15 @@ export function VideoPlayer({
       const seekFraction = clickX / rect.width;
       const seekTime = seekFraction * duration;
       videoRef.current.currentTime = seekTime;
+      setProgress(seekFraction * 100);
+      setCurrentTime(seekTime);
     }
   };
 
   const handleVolumeChange = useCallback((newVolume: number) => {
     const clampedVolume = Math.max(0, Math.min(1, newVolume));
     setVolume(clampedVolume);
-    if (videoRef.current) {
-      videoRef.current.volume = clampedVolume;
-    }
+    if (videoRef.current) videoRef.current.volume = clampedVolume;
   }, []);
 
   const toggleMute = useCallback(() => {
@@ -233,13 +232,14 @@ export function VideoPlayer({
   const toggleSubtitles = useCallback(() => {
     const video = videoRef.current;
     if (!video || subtitles.length === 0) return;
+
     const newSubtitleState = !areSubtitlesEnabled;
     for (let i = 0; i < video.textTracks.length; i++) {
       video.textTracks[i].mode =
         newSubtitleState && i === 0 ? 'showing' : 'hidden';
     }
     setAreSubtitlesEnabled(newSubtitleState);
-  }, [areSubtitlesEnabled, subtitles]);
+  }, [areSubtitlesEnabled, subtitles.length]);
 
   const handleToggleTheaterMode = useCallback(() => {
     if (theaterModeEnabled) {
@@ -294,7 +294,7 @@ export function VideoPlayer({
       if (isPlaying && !isSettingsOpen) {
         setAreControlsVisible(false);
       }
-    }, 3000);
+    }, 5000);
   }, [isPlaying, isSettingsOpen]);
 
   const handleMouseMove = () => {
@@ -328,11 +328,13 @@ export function VideoPlayer({
 
   useEffect(() => {
     if (!theaterModeEnabled) return;
+
     if (isTheaterMode) {
       document.body.classList.add('theater-mode-active');
     } else {
       document.body.classList.remove('theater-mode-active');
     }
+
     return () => {
       document.body.classList.remove('theater-mode-active');
     };
@@ -491,13 +493,16 @@ export function VideoPlayer({
   return (
     <>
       {isTheaterMode && <TheaterBackdrop onClick={handleToggleTheaterMode} />}
+
       <div
         ref={playerContainerRef}
-        className={`group transition-all duration-300 focus:outline-none ${
+        className={cn(
+          'group transition-all duration-300 focus:outline-none',
           isTheaterMode
             ? 'fixed top-0 left-0 z-50 w-full'
-            : 'relative mx-auto w-full max-w-4xl overflow-hidden rounded-lg'
-        } ${!areControlsVisible && isPlaying ? 'cursor-none' : ''}`}
+            : 'relative mx-auto w-full max-w-4xl overflow-hidden rounded-lg',
+          !areControlsVisible && isPlaying && 'cursor-none',
+        )}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         tabIndex={0}
@@ -505,13 +510,15 @@ export function VideoPlayer({
         <div className="relative aspect-video w-full bg-black">
           {title && (
             <div
-              className={`absolute top-0 right-0 left-0 z-20 bg-gradient-to-b from-black/60 to-transparent p-4 transition-opacity duration-300 ${
-                areControlsVisible ? 'opacity-100' : 'opacity-0'
-              }`}
+              className={cn(
+                'absolute top-0 right-0 left-0 z-20 bg-gradient-to-b from-black/60 to-transparent p-4 transition-opacity duration-300',
+                areControlsVisible ? 'opacity-100' : 'opacity-0',
+              )}
             >
               <h1 className="truncate text-xl font-bold text-white">{title}</h1>
             </div>
           )}
+
           <video
             ref={videoRef}
             className={`h-full w-full ${isMiniPlayer ? 'invisible' : ''}`}
@@ -532,6 +539,7 @@ export function VideoPlayer({
               />
             ))}
           </video>
+
           {!hasStarted && (
             <div className="absolute inset-0 flex items-center justify-center">
               <button
@@ -540,15 +548,17 @@ export function VideoPlayer({
                 aria-label="Play video"
                 title="Play video"
               >
-                <Play className="fill-white h-10 w-10 pl-2 sm:h-16 sm:w-16" />
+                <Play className="fill-accent h-6 w-6 pl-0.5 sm:h-10 sm:w-10 sm:pl-1" />
               </button>
             </div>
           )}
+
           {isMiniPlayer && (
             <div className="absolute inset-0 flex items-center justify-center bg-black text-white">
               <p>This video is playing in Picture-in-Picture mode.</p>
             </div>
           )}
+
           {isSettingsOpen && (
             <SettingsMenu
               playbackSpeed={playbackSpeed}
@@ -559,6 +569,7 @@ export function VideoPlayer({
               currentQualityLabel={currentQualityLabel}
             />
           )}
+
           <PlayerControls
             isPlaying={isPlaying}
             onPlayPause={togglePlay}
