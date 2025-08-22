@@ -2,7 +2,7 @@
 
 import type { Level } from 'hls.js';
 import Hls from 'hls.js';
-import { Play } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cn, formatTime } from './lib/utils';
@@ -31,6 +31,8 @@ export function VideoPlayer({
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const seekIndicatorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -53,6 +55,9 @@ export function VideoPlayer({
   const [tooltipPosition, setTooltipPosition] = useState(0);
   const [hasStarted, setHasStarted] = useState(false);
   const [isTheaterMode, setIsTheaterMode] = useState(false);
+  const [seekIndicator, setSeekIndicator] = useState<
+    'forward' | 'backward' | 'none'
+  >('none');
 
   const currentSrc =
     playlist && playlist.length > 0 ? playlist[currentVideoIndex] : src;
@@ -150,6 +155,40 @@ export function VideoPlayer({
       video.removeEventListener('pause', () => setIsPlaying(false));
     };
   }, [isAutoplayEnabled, handleNext]);
+
+  const handleSeekDoubleTap = (direction: 'forward' | 'backward') => {
+    if (!videoRef.current) return;
+
+    const seekAmount = direction === 'forward' ? 10 : -10;
+    seekRelative(seekAmount);
+
+    setSeekIndicator(direction);
+
+    if (seekIndicatorTimeoutRef.current) {
+      clearTimeout(seekIndicatorTimeoutRef.current);
+    }
+
+    seekIndicatorTimeoutRef.current = setTimeout(() => {
+      setSeekIndicator('none');
+    }, 600);
+  };
+
+  const handleClickArea = (direction?: 'forward' | 'backward') => {
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current = null;
+
+      if (direction) {
+        handleSeekDoubleTap(direction);
+      }
+    } else {
+      clickTimeoutRef.current = setTimeout(() => {
+        clickTimeoutRef.current = null;
+
+        togglePlay();
+      }, 250);
+    }
+  };
 
   const handleTimelineHover = (positionX: number, timeFraction: number) => {
     setTooltipPosition(positionX);
@@ -524,7 +563,7 @@ export function VideoPlayer({
             ref={videoRef}
             className={`h-full w-full ${isMiniPlayer ? 'invisible' : ''}`}
             playsInline
-            onClick={hasStarted ? togglePlay : undefined}
+            // onClick={hasStarted ? togglePlay : undefined}
             onDoubleClick={toggleFullScreen}
             crossOrigin="anonymous"
             autoPlay={false}
@@ -541,6 +580,66 @@ export function VideoPlayer({
               />
             ))}
           </video>
+
+          <div className="absolute inset-0 z-10 grid grid-cols-2">
+            <div
+              className="h-full w-full"
+              onClick={() => handleClickArea('backward')}
+            />
+            <div
+              className="h-full w-full"
+              onClick={() => handleClickArea('forward')}
+            />
+          </div>
+
+          <div
+            className={`pointer-events-none absolute inset-0 flex items-center justify-center 
+    transition-all duration-500 ease-out
+    ${seekIndicator !== 'none' ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}
+  `}
+          >
+            {seekIndicator === 'backward' && (
+              <div className="absolute inset-y-0 left-0 flex w-1/2 items-center justify-start pl-3 sm:pl-6 pointer-events-none">
+                <div className="flex flex-col items-center text-white">
+                  <div
+                    className="flex flex-col items-center justify-center 
+            w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 
+            rounded-full bg-black/50 seek-glow seek-pop"
+                  >
+                    <div className="flex">
+                      <ChevronLeft className="h-4 w-4 sm:h-6 sm:w-6 md:h-8 md:w-10 arrow-animate" />
+                      <ChevronLeft className="h-4 w-4 -ml-1 sm:h-6 sm:w-6 sm:-ml-2 md:h-8 md:w-10 arrow-animate arrow-delay" />
+                      <ChevronLeft className="h-4 w-4 -ml-1 sm:h-6 sm:w-6 sm:-ml-2 md:h-8 md:w-10 arrow-animate arrow-delay" />
+                    </div>
+                    <span className="text-xs sm:text-sm md:text-base font-bold drop-shadow">
+                      10s
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {seekIndicator === 'forward' && (
+              <div className="absolute inset-y-0 right-0 flex w-1/2 items-center justify-end pr-3 sm:pr-6 pointer-events-none">
+                <div className="flex flex-col items-center text-white">
+                  <div
+                    className="flex flex-col items-center justify-center 
+            w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 
+            rounded-full bg-black/50 seek-glow seek-pop"
+                  >
+                    <div className="flex">
+                      <ChevronRight className="h-4 w-4 sm:h-6 sm:w-6 md:h-8 md:w-10 arrow-animate" />
+                      <ChevronRight className="h-4 w-4 -ml-1 sm:h-6 sm:w-6 sm:-ml-2 md:h-8 md:w-10 arrow-animate arrow-delay" />
+                      <ChevronRight className="h-4 w-4 -ml-1 sm:h-6 sm:w-6 sm:-ml-2 md:h-8 md:w-10 arrow-animate arrow-delay" />
+                    </div>
+                    <span className="text-xs sm:text-sm md:text-base font-bold drop-shadow">
+                      10s
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
           {!hasStarted && poster && (
             <img

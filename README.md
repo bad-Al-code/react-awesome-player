@@ -8,6 +8,7 @@ A modern, feature-rich, and accessible video player for React, built with hls.js
 ## Features
 
 - **HLS & MP4 Support:** Plays modern streaming formats (HLS) with a fallback to standard MP4.
+- **Double-Tap/Click to Seek:** Intuitively seek 10 seconds forward or backward.
 - **Playlist Functionality:** Easily create and manage video playlists.
 - **Adaptive Bitrate Streaming:** Automatically adjusts video quality based on network conditions.
 - **Rich Controls:** Includes play/pause, volume, fullscreen, picture-in-picture, and settings menu.
