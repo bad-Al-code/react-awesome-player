@@ -1,7 +1,7 @@
 {
   "name": "@badalcodeorg/react-awesome-player",
   "private": false,
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "A modern, feature-rich, and accessible video player for React.",
   "type": "module",
   "main": "./dist/react-awesome-player.umd.cjs",
