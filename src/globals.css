@@ -145,42 +145,55 @@ body.theater-mode-active .main-content-for-theater {
 }
 @keyframes seek-pop {
   0% {
-    transform: scale(0.8);
+    transform: scale(0.6);
     opacity: 0;
   }
-  50% {
+  40% {
     transform: scale(1.1);
     opacity: 1;
   }
-  100% {
+  70% {
     transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.95);
     opacity: 0;
   }
 }
 
 @keyframes arrow-fade {
   0% {
-    transform: translateX(8px);
+    transform: translateX(12px);
     opacity: 0;
+  }
+  50% {
+    opacity: 1;
   }
   100% {
     transform: translateX(0);
-    opacity: 1;
+    opacity: 0;
   }
 }
 
 .seek-pop {
-  animation: seek-pop 0.9s ease-out forwards;
+  animation: seek-pop 0.8s ease-out forwards;
 }
 
 .arrow-animate {
-  animation: arrow-fade 0.9s ease-out;
+  animation: arrow-fade 0.6s ease-out forwards;
 }
 
-.arrow-delay {
+.arrow-1 {
+  animation-delay: 0s;
+}
+.arrow-2 {
   animation-delay: 0.1s;
+}
+.arrow-3 {
+  animation-delay: 0.2s;
 }
 
 .seek-glow {
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 25px rgba(255, 255, 255, 0.4);
 }
