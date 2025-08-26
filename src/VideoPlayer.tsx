@@ -2,7 +2,7 @@
 
 import type { Level } from 'hls.js';
 import Hls from 'hls.js';
-import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, Play } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cn, formatTime } from './lib/utils';
@@ -58,6 +58,7 @@ export function VideoPlayer({
   const [seekIndicator, setSeekIndicator] = useState<
     'forward' | 'backward' | 'none'
   >('none');
+  const [isBuffering, setIsBuffering] = useState(false);
 
   const currentSrc =
     playlist && playlist.length > 0 ? playlist[currentVideoIndex] : src;
@@ -66,6 +67,7 @@ export function VideoPlayer({
     const videoElement = videoRef.current;
     if (!videoElement || !currentSrc) return;
 
+    setIsBuffering(true);
     setHasStarted(false);
     setIsPlaying(false);
     setProgress(0);
@@ -119,18 +121,21 @@ export function VideoPlayer({
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+
     const handleEnded = () => {
       setIsPlaying(false);
       if (isAutoplayEnabled) {
         handleNext();
       }
     };
+
     const handleTimeUpdate = () => {
       if (video.duration) {
         setProgress((video.currentTime / video.duration) * 100);
         setCurrentTime(video.currentTime);
       }
     };
+
     const handleProgress = () => {
       if (video.buffered.length > 0 && video.duration) {
         const bufferedEnd = video.buffered.end(video.buffered.length - 1);
@@ -140,12 +145,21 @@ export function VideoPlayer({
     const handleLoadedMetadata = () => {
       setDuration(video.duration);
     };
+
+    const handleWaiting = () => setIsBuffering(true);
+    const handlePlaying = () => setIsBuffering(false);
+
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('progress', handleProgress);
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
     video.addEventListener('ended', handleEnded);
     video.addEventListener('play', () => setIsPlaying(true));
     video.addEventListener('pause', () => setIsPlaying(false));
+    video.addEventListener('waiting', handleWaiting);
+    video.addEventListener('playing', handlePlaying);
+    video.addEventListener('play', () => setIsPlaying(true));
+    video.addEventListener('pause', () => setIsPlaying(false));
+
     return () => {
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('progress', handleProgress);
@@ -153,6 +167,8 @@ export function VideoPlayer({
       video.removeEventListener('ended', handleEnded);
       video.removeEventListener('play', () => setIsPlaying(true));
       video.removeEventListener('pause', () => setIsPlaying(false));
+      video.removeEventListener('waiting', handleWaiting);
+      video.removeEventListener('playing', handlePlaying);
     };
   }, [isAutoplayEnabled, handleNext]);
 
@@ -568,6 +584,7 @@ export function VideoPlayer({
             crossOrigin="anonymous"
             autoPlay={false}
             poster={poster}
+            data-testid="video-element"
           >
             {subtitles.map((sub, index) => (
               <track
@@ -640,6 +657,12 @@ export function VideoPlayer({
               </div>
             )}
           </div>
+
+          {isBuffering && hasStarted && (
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+              <Loader2 className="h-12 w-12 animate-spin text-muted/70" />
+            </div>
+          )}
 
           {!hasStarted && poster && (
             <img
