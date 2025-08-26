@@ -13,6 +13,7 @@ type BasePlayerProps = {
     time: number;
     /** The title of the chapter, displayed in a tooltip. */
     label: string;
+    thumbnail?: string;
   }[];
 
   /** An optional URL for a poster image to display before the video starts. */
@@ -98,6 +99,9 @@ export interface PlayerControlsProps {
   onPrevious: () => void;
   isAutoplayEnabled: boolean;
   toggleAutoplay: () => void;
+  currentChapter?: string;
+  onToggleChapters: () => void;
+  areChaptersVisible: boolean;
 }
 
 export interface PlayerControlsWithTooltipProps extends PlayerControlsProps {

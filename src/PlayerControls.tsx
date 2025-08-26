@@ -1,4 +1,5 @@
 import {
+  ChevronRight,
   Maximize,
   Minimize,
   Pause,
@@ -54,6 +55,8 @@ export function PlayerControls({
   onTimelineMouseLeave,
   chapters,
   onSeekTo,
+  currentChapter,
+  onToggleChapters,
 }: PlayerControlsWithTooltipProps) {
   const VolumeIcon = volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
 
@@ -147,11 +150,29 @@ export function PlayerControls({
               />
             </div>
 
-            <div className="text-xs sm:text-sm">
+            <div className="text-xs sm:text-sm flex gap-0.5 flex-shrink-0">
               <span>{formatTime(currentTime)}</span> /{' '}
               <span>{formatTime(duration)}</span>
             </div>
           </div>
+
+          {currentChapter && (
+            <div
+              onClick={onToggleChapters}
+              className="flex items-center flex-1 min-w-0 mx-2 text-white/90 hover:text-white transition-colors text-xs sm:text-sm "
+            >
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center min-w-0">
+                    <span className="flex-shrink-0"> • </span>
+                    <span className="truncate ml-1">{currentChapter}</span>
+                    <ChevronRight className="ml-1 h-3 w-3 flex-shrink-0" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>View Chapters</TooltipContent>
+              </Tooltip>
+            </div>
+          )}
 
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="hidden items-center gap-2 sm:flex sm:gap-3">

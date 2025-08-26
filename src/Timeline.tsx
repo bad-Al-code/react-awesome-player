@@ -46,7 +46,7 @@ export function Timeline({
           <Tooltip key={chapter.time}>
             <TooltipTrigger asChild>
               <div
-                className="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full bg-white/70 hover:bg-white"
+                className="absolute top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full bg-white/70 hover:bg-white"
                 style={{
                   left: `${(chapter.time / duration) * 100}%`,
                 }}

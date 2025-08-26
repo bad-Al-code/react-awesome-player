@@ -5,6 +5,7 @@ import Hls from 'hls.js';
 import { ChevronLeft, ChevronRight, Loader2, Play } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { ChaptersSidebar } from './ChapterSidebar';
 import { cn, formatTime } from './lib/utils';
 import { PlayerControls } from './PlayerControls';
 import { SettingsMenu } from './SettingsMenu';
@@ -26,7 +27,7 @@ export function VideoPlayer({
   currentVideoIndex = 0,
   onVideoChange = () => {},
   theaterModeEnabled = false,
-  chapters,
+  chapters = [],
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
@@ -60,6 +61,7 @@ export function VideoPlayer({
     'forward' | 'backward' | 'none'
   >('none');
   const [isBuffering, setIsBuffering] = useState(false);
+  const [areChaptersVisible, setAreChaptersVisible] = useState(false);
 
   const currentSrc =
     playlist && playlist.length > 0 ? playlist[currentVideoIndex] : src;
@@ -207,11 +209,21 @@ export function VideoPlayer({
     }
   };
 
+  const currentChapter = [...chapters]
+    .reverse()
+    .find((chapter) => chapter.time <= currentTime);
+
   const handleSeekTo = useCallback((time: number) => {
     if (videoRef.current) {
       videoRef.current.currentTime = time;
+
+      setAreChaptersVisible(false);
     }
   }, []);
+
+  const toggleChapters = () => {
+    setAreChaptersVisible((prev) => !prev);
+  };
 
   const handleTimelineHover = (positionX: number, timeFraction: number) => {
     setTooltipPosition(positionX);
@@ -570,7 +582,7 @@ export function VideoPlayer({
         onMouseLeave={handleMouseLeave}
         tabIndex={0}
       >
-        <div className="relative aspect-video w-full bg-black">
+        <div className="relative aspect-video w-full bg-black overflow-hidden">
           {title && (
             <div
               className={cn(
@@ -709,6 +721,15 @@ export function VideoPlayer({
             />
           )}
 
+          {areChaptersVisible && (
+            <ChaptersSidebar
+              chapters={chapters}
+              currentTime={currentTime}
+              onSeekTo={handleSeekTo}
+              onClose={toggleChapters}
+            />
+          )}
+
           <PlayerControls
             isPlaying={isPlaying}
             onPlayPause={togglePlay}
@@ -740,6 +761,9 @@ export function VideoPlayer({
             isTheaterMode={isTheaterMode}
             chapters={chapters}
             onSeekTo={handleSeekTo}
+            currentChapter={currentChapter?.label}
+            onToggleChapters={toggleChapters}
+            areChaptersVisible={areChaptersVisible}
           />
         </div>
       </div>
