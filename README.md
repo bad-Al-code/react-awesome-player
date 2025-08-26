@@ -16,6 +16,7 @@ A modern, feature-rich, and accessible video player for React, built with hls.js
 - **Keyboard Shortcuts:** Full keyboard navigation for power users.
 - **Customizable:** Built with Tailwind CSS for easy theme customization.
 - **Accessible:** Designed with accessibility in mind.
+- **Timeline Markers:** Display chapters or key moments directly on the timeline.
 
 ## Installation
 
@@ -101,16 +102,17 @@ body.theater-mode-active .main-content-for-theater {
 
 ## API / Props
 
-| Prop                 | Type                         | Required | Description                                                                                |
-| -------------------- | ---------------------------- | -------- | ------------------------------------------------------------------------------------------ |
-| `src`                | `string`                     | Yes\*    | The URL of the single video source to play.                                                |
-| `poster`             | `string`                     | No\*     | An optional URL for a poster image to display before the video starts.                     |
-| `playlist`           | `string[]`                   | Yes\*    | An array of video source URLs for a playlist.                                              |
-| `currentVideoIndex`  | `number`                     | Yes\*\*  | The starting index for the playlist.                                                       |
-| `onVideoChange`      | `(newIndex: number) => void` | Yes\*\*  | Callback triggered when the video changes in a playlist.                                   |
-| `title`              | `string`                     | No       | An optional title displayed at the top-left of the player.                                 |
-| `subtitles`          | `Array`                      | No       | An array of subtitle track objects (`{ lang, label, src }`).                               |
-| `theaterModeEnabled` | `boolean`                    | No       | If true, enables the theatre mode feature. Requires global CSS setup. Defaults to `false`. |
+| Prop                 | Type                                    | Required | Description                                                                                |
+| -------------------- | --------------------------------------- | -------- | ------------------------------------------------------------------------------------------ |
+| `src`                | `string`                                | Yes\*    | The URL of the single video source to play.                                                |
+| `poster`             | `string`                                | No\*     | An optional URL for a poster image to display before the video starts.                     |
+| `playlist`           | `string[]`                              | Yes\*    | An array of video source URLs for a playlist.                                              |
+| `currentVideoIndex`  | `number`                                | Yes\*\*  | The starting index for the playlist.                                                       |
+| `onVideoChange`      | `(newIndex: number) => void`            | Yes\*\*  | Callback triggered when the video changes in a playlist.                                   |
+| `title`              | `string`                                | No       | An optional title displayed at the top-left of the player.                                 |
+| `subtitles`          | `Array`                                 | No       | An array of subtitle track objects (`{ lang, label, src }`).                               |
+| `theaterModeEnabled` | `boolean`                               | No       | If true, enables the theatre mode feature. Requires global CSS setup. Defaults to `false`. |
+| `chapters`           | `Array<{time: number; label: string;}>` | No       | An array of chapter markers to display on the timeline.                                    |
 
 \*You must provide either `src` or `playlist`, but not both.
 \*\*Required only when using the `playlist` prop.

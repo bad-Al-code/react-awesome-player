@@ -1,4 +1,5 @@
 import { TimelineProps } from './types';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
 export function Timeline({
   progress,
@@ -6,6 +7,9 @@ export function Timeline({
   onSeek,
   onHover,
   onMouseLeave,
+  onSeekTo,
+  duration,
+  chapters = [],
 }: TimelineProps) {
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const timeline = e.currentTarget;
@@ -36,6 +40,28 @@ export function Timeline({
         className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white transition-transform group-hover/timeline:scale-100"
         style={{ left: `${progress}%` }}
       />
+
+      {duration > 0 &&
+        chapters.map((chapter) => (
+          <Tooltip key={chapter.time}>
+            <TooltipTrigger asChild>
+              <div
+                className="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full bg-white/70 hover:bg-white"
+                style={{
+                  left: `${(chapter.time / duration) * 100}%`,
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSeekTo(chapter.time);
+                }}
+                data-testid="timeline-marker"
+              />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{chapter.label}</p>
+            </TooltipContent>
+          </Tooltip>
+        ))}
     </div>
   );
 }

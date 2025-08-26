@@ -52,6 +52,8 @@ export function PlayerControls({
   tooltipPosition,
   onTimelineHover,
   onTimelineMouseLeave,
+  chapters,
+  onSeekTo,
 }: PlayerControlsWithTooltipProps) {
   const VolumeIcon = volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
 
@@ -78,6 +80,9 @@ export function PlayerControls({
           onSeek={onSeek}
           onHover={onTimelineHover}
           onMouseLeave={onTimelineMouseLeave}
+          duration={duration}
+          onSeekTo={onSeekTo}
+          chapters={chapters}
         />
 
         <div className="mt-1 flex items-center justify-between sm:mt-2">

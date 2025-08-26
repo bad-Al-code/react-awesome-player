@@ -8,6 +8,13 @@ type BasePlayerProps = {
     label: string;
     src: string;
   }[];
+  chapters?: {
+    /** The time in seconds where the chapter marker should appear. */
+    time: number;
+    /** The title of the chapter, displayed in a tooltip. */
+    label: string;
+  }[];
+
   /** An optional URL for a poster image to display before the video starts. */
   poster?: string;
 
@@ -48,9 +55,12 @@ export type VideoPlayerProps =
 export interface TimelineProps {
   progress: number;
   buffered: number;
+  duration: number;
   onSeek: (e: React.MouseEvent<HTMLDivElement>) => void;
   onHover: (positionX: number, timeFraction: number) => void;
   onMouseLeave: () => void;
+  onSeekTo: (time: number) => void;
+  chapters?: { time: number; label: string }[];
 }
 
 export type SettingsMenuType = 'main' | 'speed' | 'quality';
@@ -96,4 +106,7 @@ export interface PlayerControlsWithTooltipProps extends PlayerControlsProps {
   tooltipPosition: number;
   onTimelineHover: (positionX: number, timeFraction: number) => void;
   onTimelineMouseLeave: () => void;
+  chapters?: { time: number; label: string }[];
+  onSeekTo: (time: number) => void;
+  duration: number;
 }

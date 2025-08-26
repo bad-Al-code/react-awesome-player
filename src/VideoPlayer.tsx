@@ -26,6 +26,7 @@ export function VideoPlayer({
   currentVideoIndex = 0,
   onVideoChange = () => {},
   theaterModeEnabled = false,
+  chapters,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
@@ -205,6 +206,12 @@ export function VideoPlayer({
       }, 250);
     }
   };
+
+  const handleSeekTo = useCallback((time: number) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = time;
+    }
+  }, []);
 
   const handleTimelineHover = (positionX: number, timeFraction: number) => {
     setTooltipPosition(positionX);
@@ -731,6 +738,8 @@ export function VideoPlayer({
             onTimelineMouseLeave={handleTimelineMouseLeave}
             toggleTheaterMode={handleToggleTheaterMode}
             isTheaterMode={isTheaterMode}
+            chapters={chapters}
+            onSeekTo={handleSeekTo}
           />
         </div>
       </div>
