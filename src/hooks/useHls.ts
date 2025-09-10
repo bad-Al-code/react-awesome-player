@@ -1,19 +1,16 @@
-import Hls from 'hls.js';
+import Hls, { Level } from 'hls.js';
 import { useEffect, useRef } from 'react';
-import { usePlayerStore } from '../store/playerStore';
 
 export const useHls = (
   src: string | undefined,
   videoElement: HTMLVideoElement | null,
+  actions: {
+    setAvailableQualities: (qualities: Level[]) => void;
+    setIsBuffering: (isBuffering: boolean) => void;
+    setError: (error: string | null) => void;
+  },
 ) => {
-  const { setAvailableQualities, setIsBuffering, setError } = usePlayerStore(
-    (state) => ({
-      setAvailableQualities: state.setAvailableQualities,
-      setIsBuffering: state.setIsBuffering,
-      setError: state.setError,
-    }),
-  );
-
+  const { setAvailableQualities, setIsBuffering, setError } = actions;
   const hlsRef = useRef<Hls | null>(null);
 
   useEffect(() => {

@@ -1,9 +1,16 @@
 import { useEffect } from 'react';
-import { usePlayerStore } from '../store/playerStore';
 
 export const usePlayerState = (
   videoElement: HTMLVideoElement | null,
   onEnded: () => void,
+  actions: {
+    setIsPlaying: (isPlaying: boolean) => void;
+    setProgress: (progress: number) => void;
+    setBuffered: (buffered: number) => void;
+    setDuration: (duration: number) => void;
+    setCurrentTime: (time: number) => void;
+    setIsBuffering: (isBuffering: boolean) => void;
+  },
 ) => {
   const {
     setIsPlaying,
@@ -12,7 +19,7 @@ export const usePlayerState = (
     setDuration,
     setCurrentTime,
     setIsBuffering,
-  } = usePlayerStore();
+  } = actions;
 
   useEffect(() => {
     const video = videoElement;

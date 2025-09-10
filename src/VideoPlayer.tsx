@@ -52,19 +52,11 @@ export function VideoPlayer({
         : (playlist[currentVideoIndex] as { src: string }).src
       : src;
 
-  const hlsRef = useHls(currentSrc, videoRef.current);
-  const {
-    handleMouseMove,
-    handleMouseLeave,
-    handleTimelineHover,
-    handleTimelineMouseLeave,
-  } = usePlayerUI();
-  const {
-    handleSeekForward,
-    handleSeekBackward,
-    seekIndicator,
-    cumulativeSeek,
-  } = useCumulativeSeek(videoRef, state.duration);
+  const hlsRef = useHls(currentSrc, videoRef.current, {
+    setAvailableQualities: actions.setAvailableQualities,
+    setIsBuffering: actions.setIsBuffering,
+    setError: actions.setError,
+  });
 
   useEffect(() => {
     resetPlayerState();
@@ -86,7 +78,43 @@ export function VideoPlayer({
     if (state.isAutoplayEnabled) handleNext();
   }, [state.isAutoplayEnabled, handleNext]);
 
-  usePlayerState(videoRef.current, handleVideoEnded);
+  usePlayerState(videoRef.current, handleVideoEnded, {
+    setIsPlaying: actions.setIsPlaying,
+    setProgress: actions.setProgress,
+    setBuffered: actions.setBuffered,
+    setDuration: actions.setDuration,
+    setCurrentTime: actions.setCurrentTime,
+    setIsBuffering: actions.setIsBuffering,
+  });
+
+  const {
+    handleMouseMove,
+    handleMouseLeave,
+    handleTimelineHover,
+    handleTimelineMouseLeave,
+  } = usePlayerUI(
+    {
+      isPlaying: state.isPlaying,
+      isSettingsOpen: state.isSettingsOpen,
+      duration: state.duration,
+    },
+    {
+      setAreControlsVisible: actions.setAreControlsVisible,
+      setIsTooltipVisible: actions.setIsTooltipVisible,
+      setTooltipContent: actions.setTooltipContent,
+      setTooltipPosition: actions.setTooltipPosition,
+    },
+  );
+  const {
+    handleSeekForward,
+    handleSeekBackward,
+    seekIndicator,
+    cumulativeSeek,
+  } = useCumulativeSeek(videoRef, state.duration);
+
+  useEffect(() => {
+    resetPlayerState();
+  }, [currentSrc]);
 
   const toggleFullScreen = useCallback(() => {
     const playerContainer = playerContainerRef.current;

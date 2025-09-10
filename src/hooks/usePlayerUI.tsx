@@ -1,17 +1,22 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { formatTime } from '../lib/utils';
-import { usePlayerStore } from '../store/playerStore';
 
-export const usePlayerUI = () => {
+export const usePlayerUI = (
+  state: { isPlaying: boolean; isSettingsOpen: boolean; duration: number },
+  actions: {
+    setAreControlsVisible: (isVisible: boolean) => void;
+    setIsTooltipVisible: (isVisible: boolean) => void;
+    setTooltipContent: (content: string) => void;
+    setTooltipPosition: (position: number) => void;
+  },
+) => {
+  const { isPlaying, isSettingsOpen, duration } = state;
   const {
-    isPlaying,
-    isSettingsOpen,
-    duration,
     setAreControlsVisible,
     setIsTooltipVisible,
     setTooltipContent,
     setTooltipPosition,
-  } = usePlayerStore();
+  } = actions;
 
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
 
