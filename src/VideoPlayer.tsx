@@ -12,7 +12,8 @@ import { createPortal } from 'react-dom';
 import { ChaptersSidebar } from './ChapterSidebar';
 import { useHls } from './hooks/useHls';
 import { usePlayerState } from './hooks/usePlayerState';
-import { cn, formatTime } from './lib/utils';
+import { usePlayerUI } from './hooks/usePlayerUI';
+import { cn } from './lib/utils';
 import { PlayerControls } from './PlayerControls';
 import { SettingsMenu } from './SettingsMenu';
 import { resetPlayerState, usePlayerStore } from './store/playerStore';
@@ -38,38 +39,16 @@ export function VideoPlayer({
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
-  const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
-  // const hlsRef = useRef<Hls | null>(null);
-  const seekIndicatorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // const [isPlaying, setIsPlaying] = useState(false);
-  // const [progress, setProgress] = useState(0);
-  // const [buffered, setBuffered] = useState(0);
-  // const [duration, setDuration] = useState(0);
-  // const [currentTime, setCurrentTime] = useState(0);
-  // const [volume, setVolume] = useState(0.9);
-  // const [lastVolume, setLastVolume] = useState(0.9);
-  // const [isFullScreen, setIsFullScreen] = useState(false);
-  // const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  // const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  // const [areSubtitlesEnabled, setAreSubtitlesEnabled] = useState(false);
-  // const [areControlsVisible, setAreControlsVisible] = useState(false);
-  // const [availableQualities, setAvailableQualities] = useState<Level[]>([]);
-  // const [currentQuality, setCurrentQuality] = useState<number>(-1);
-  // const [isMiniPlayer, setIsMiniPlayer] = useState(false);
-  // const [isAutoplayEnabled, setIsAutoplayEnabled] = useState(false);
-  // const [isTooltipVisible, setIsTooltipVisible] = useState(false);
-  // const [tooltipContent, setTooltipContent] = useState('');
-  // const [tooltipPosition, setTooltipPosition] = useState(0);
-  // const [hasStarted, setHasStarted] = useState(false);
-  // const [isTheaterMode, setIsTheaterMode] = useState(false);
-  // const [seekIndicator, setSeekIndicator] = useState<
-  //   'forward' | 'backward' | 'none'
-  // >('none');
-  // const [isBuffering, setIsBuffering] = useState(false);
-  // const [areChaptersVisible, setAreChaptersVisible] = useState(false);
-  // const [error, setError] = useState<string | null>(null);
+  const state = usePlayerStore();
+  const {
+    togglePlay,
+    setVolume,
+    setPlaybackSpeed,
+    toggleMute,
+    toggleAutoplay,
+    setIsSettingsOpen,
+    setCurrentQuality,
+  } = usePlayerStore.getState();
 
   const currentSrc =
     playlist && playlist.length > 0 ? playlist[currentVideoIndex] : src;
@@ -93,14 +72,21 @@ export function VideoPlayer({
     }
   }, [isAutoplayEnabled, handleNext]);
 
-  usePlayerState(videoRef.current, handleVideoEnded);
-
   const handlePrevious = useCallback(() => {
     const prevIndex = currentVideoIndex - 1;
     if (playlist && prevIndex >= 0) {
       onVideoChange(prevIndex);
     }
   }, [currentVideoIndex, playlist, onVideoChange]);
+
+  usePlayerState(videoRef.current, handleVideoEnded);
+
+  const {
+    handleMouseMove,
+    handleMouseLeave,
+    handleTimelineHover,
+    handleTimelineMouseLeave,
+  } = usePlayerUI();
 
   const handleSeekDoubleTap = (direction: 'forward' | 'backward') => {
     if (!videoRef.current) return;
@@ -152,31 +138,6 @@ export function VideoPlayer({
     setAreChaptersVisible((prev) => !prev);
   };
 
-  const handleTimelineHover = (positionX: number, timeFraction: number) => {
-    setTooltipPosition(positionX);
-    setTooltipContent(formatTime(timeFraction * duration));
-    setIsTooltipVisible(true);
-  };
-
-  const handleTimelineMouseLeave = () => {
-    setIsTooltipVisible(false);
-  };
-
-  const toggleAutoplay = () => {
-    setIsAutoplayEnabled(!isAutoplayEnabled);
-  };
-
-  const togglePlay = useCallback(() => {
-    if (!hasStarted) {
-      setHasStarted(true);
-    }
-
-    if (videoRef.current) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-      isPlaying ? videoRef.current.pause() : videoRef.current.play();
-    }
-  }, [isPlaying, hasStarted]);
-
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
     if (videoRef.current) {
       const timeline = e.currentTarget;
@@ -195,17 +156,6 @@ export function VideoPlayer({
     setVolume(clampedVolume);
     if (videoRef.current) videoRef.current.volume = clampedVolume;
   }, []);
-
-  const toggleMute = useCallback(() => {
-    if (volume > 0) {
-      setLastVolume(volume);
-      setVolume(0);
-      if (videoRef.current) videoRef.current.volume = 0;
-    } else {
-      setVolume(lastVolume);
-      if (videoRef.current) videoRef.current.volume = lastVolume;
-    }
-  }, [volume, lastVolume]);
 
   const toggleFullScreen = useCallback(() => {
     const playerContainer = playerContainerRef.current;
@@ -288,31 +238,6 @@ export function VideoPlayer({
     [duration],
   );
 
-  const resetInactivityTimer = useCallback(() => {
-    if (inactivityTimerRef.current) {
-      clearTimeout(inactivityTimerRef.current);
-    }
-    inactivityTimerRef.current = setTimeout(() => {
-      if (isPlaying && !isSettingsOpen) {
-        setAreControlsVisible(false);
-      }
-    }, 5000);
-  }, [isPlaying, isSettingsOpen]);
-
-  const handleMouseMove = () => {
-    setAreControlsVisible(true);
-    resetInactivityTimer();
-  };
-
-  const handleMouseLeave = () => {
-    if (inactivityTimerRef.current) {
-      clearTimeout(inactivityTimerRef.current);
-    }
-    if (isPlaying && !isSettingsOpen) {
-      setAreControlsVisible(false);
-    }
-  };
-
   const handleQualityChange = (levelIndex: number) => {
     if (hlsRef.current) {
       hlsRef.current.currentLevel = levelIndex;
@@ -320,13 +245,6 @@ export function VideoPlayer({
     }
     setIsSettingsOpen(false);
   };
-
-  const currentQualityLabel =
-    currentQuality === -1
-      ? `Auto (${
-          hlsRef.current?.levels[hlsRef.current?.currentLevel]?.height ?? '...'
-        }p)`
-      : `${availableQualities[currentQuality]?.height}p`;
 
   useEffect(() => {
     if (!theaterModeEnabled) return;
@@ -492,18 +410,25 @@ export function VideoPlayer({
     handleVolumeChange,
   ]);
 
+  const currentQualityLabel =
+    state.currentQuality === -1
+      ? `Auto (${hlsRef.current?.levels[hlsRef.current?.currentLevel]?.height ?? '...'}p)`
+      : `${state.availableQualities[state.currentQuality]?.height}p`;
+
   return (
     <>
-      {isTheaterMode && <TheaterBackdrop onClick={handleToggleTheaterMode} />}
+      {state.isTheaterMode && (
+        <TheaterBackdrop onClick={handleToggleTheaterMode} />
+      )}
 
       <div
         ref={playerContainerRef}
         className={cn(
           'group transition-all duration-300 focus:outline-none',
-          isTheaterMode
+          state.isTheaterMode
             ? 'fixed top-0 left-0 z-50 w-full'
             : 'relative mx-auto w-full max-w-4xl overflow-hidden rounded-lg',
-          !areControlsVisible && isPlaying && 'cursor-none',
+          !state.areControlsVisible && state.isPlaying && 'cursor-none',
         )}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
@@ -514,7 +439,7 @@ export function VideoPlayer({
             <div
               className={cn(
                 'absolute top-0 right-0 left-0 z-20 bg-gradient-to-b from-black/60 to-transparent p-4 transition-opacity duration-300',
-                areControlsVisible ? 'opacity-100' : 'opacity-0',
+                state.areControlsVisible ? 'opacity-100' : 'opacity-0',
               )}
             >
               <h1 className="truncate text-xl font-bold text-white">{title}</h1>
@@ -523,7 +448,7 @@ export function VideoPlayer({
 
           <video
             ref={videoRef}
-            className={`h-full w-full ${isMiniPlayer ? 'invisible' : ''}`}
+            className={`h-full w-full ${state.isMiniPlayer ? 'invisible' : ''}`}
             playsInline
             // onClick={hasStarted ? togglePlay : undefined}
             onDoubleClick={toggleFullScreen}
@@ -639,19 +564,19 @@ export function VideoPlayer({
             </div>
           )}
 
-          {isMiniPlayer && (
+          {state.isMiniPlayer && (
             <div className="absolute inset-0 flex items-center justify-center bg-black text-white">
               <p>This video is playing in Picture-in-Picture mode.</p>
             </div>
           )}
 
-          {isSettingsOpen && (
+          {state.isSettingsOpen && (
             <SettingsMenu
-              playbackSpeed={playbackSpeed}
-              onSpeedChange={handlePlaybackSpeedChange}
-              availableQualities={availableQualities}
-              currentQuality={currentQuality}
-              onQualityChange={handleQualityChange}
+              playbackSpeed={state.playbackSpeed}
+              onSpeedChange={setPlaybackSpeed}
+              availableQualities={state.availableQualities}
+              currentQuality={state.currentQuality}
+              onQualityChange={setCurrentQuality}
               currentQualityLabel={currentQualityLabel}
             />
           )}
@@ -659,30 +584,30 @@ export function VideoPlayer({
           {areChaptersVisible && (
             <ChaptersSidebar
               chapters={chapters}
-              currentTime={currentTime}
+              currentTime={state.currentTime}
               onSeekTo={handleSeekTo}
               onClose={toggleChapters}
             />
           )}
 
           <PlayerControls
-            isPlaying={isPlaying}
+            isPlaying={state.isPlaying}
             onPlayPause={togglePlay}
-            progress={progress}
-            buffered={buffered}
-            duration={duration}
-            currentTime={currentTime}
+            progress={state.progress}
+            buffered={state.buffered}
+            duration={state.duration}
+            currentTime={state.currentTime}
             onSeek={handleSeek}
-            volume={volume}
+            volume={state.volume}
             onVolumeChange={handleVolumeChange}
             toggleMute={toggleMute}
-            isFullScreen={isFullScreen}
+            isFullScreen={state.isFullScreen}
             toggleFullScreen={toggleFullScreen}
             toggleSettings={toggleSettings}
             toggleSubtitles={toggleSubtitles}
-            areSubtitlesEnabled={areSubtitlesEnabled}
+            areSubtitlesEnabled={state.areSubtitlesEnabled}
             toggleMiniPlayer={toggleMiniPlayer}
-            isVisible={areControlsVisible && hasStarted}
+            isVisible={state.areControlsVisible && state.hasStarted}
             onNext={handleNext}
             onPrevious={handlePrevious}
             toggleAutoplay={toggleAutoplay}
@@ -693,7 +618,7 @@ export function VideoPlayer({
             onTimelineHover={handleTimelineHover}
             onTimelineMouseLeave={handleTimelineMouseLeave}
             toggleTheaterMode={handleToggleTheaterMode}
-            isTheaterMode={isTheaterMode}
+            isTheaterMode={state.isTheaterMode}
             chapters={chapters}
             onSeekTo={handleSeekTo}
             currentChapter={currentChapter?.label}
