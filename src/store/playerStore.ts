@@ -97,15 +97,18 @@ export const usePlayerStore = create<PlayerState & PlayerActions>(
       const clampedVolume = Math.max(0, Math.min(1, newVolume));
       set({ volume: clampedVolume });
     },
+
     setPlaybackSpeed: (speed) => {
       set({ playbackSpeed: speed, isSettingsOpen: false });
     },
+
     togglePlay: () => {
       if (!get().hasStarted) {
         set({ hasStarted: true });
       }
       set((state) => ({ isPlaying: !state.isPlaying }));
     },
+
     toggleMute: () => {
       const { volume, lastVolume } = get();
       if (volume > 0) {
@@ -114,6 +117,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>(
         set({ volume: lastVolume });
       }
     },
+
     toggleAutoplay: () => {
       set((state) => ({ isAutoplayEnabled: !state.isAutoplayEnabled }));
     },

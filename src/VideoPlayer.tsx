@@ -1,7 +1,5 @@
 'use client';
 
-import type { Level } from 'hls.js';
-import Hls from 'hls.js';
 import {
   AlertTriangle,
   ChevronLeft,
@@ -9,12 +7,14 @@ import {
   Loader2,
   Play,
 } from 'lucide-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ChaptersSidebar } from './ChapterSidebar';
+import { useHls } from './hooks/useHls';
 import { cn, formatTime } from './lib/utils';
 import { PlayerControls } from './PlayerControls';
 import { SettingsMenu } from './SettingsMenu';
+import { resetPlayerState } from './store/playerStore';
 import type { VideoPlayerProps } from './types';
 
 function TheaterBackdrop({ onClick }: { onClick: () => void }) {
@@ -38,102 +38,44 @@ export function VideoPlayer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const hlsRef = useRef<Hls | null>(null);
+  // const hlsRef = useRef<Hls | null>(null);
   const seekIndicatorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [buffered, setBuffered] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [volume, setVolume] = useState(0.9);
-  const [lastVolume, setLastVolume] = useState(0.9);
-  const [isFullScreen, setIsFullScreen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const [areSubtitlesEnabled, setAreSubtitlesEnabled] = useState(false);
-  const [areControlsVisible, setAreControlsVisible] = useState(false);
-  const [availableQualities, setAvailableQualities] = useState<Level[]>([]);
-  const [currentQuality, setCurrentQuality] = useState<number>(-1);
-  const [isMiniPlayer, setIsMiniPlayer] = useState(false);
-  const [isAutoplayEnabled, setIsAutoplayEnabled] = useState(false);
-  const [isTooltipVisible, setIsTooltipVisible] = useState(false);
-  const [tooltipContent, setTooltipContent] = useState('');
-  const [tooltipPosition, setTooltipPosition] = useState(0);
-  const [hasStarted, setHasStarted] = useState(false);
-  const [isTheaterMode, setIsTheaterMode] = useState(false);
-  const [seekIndicator, setSeekIndicator] = useState<
-    'forward' | 'backward' | 'none'
-  >('none');
-  const [isBuffering, setIsBuffering] = useState(false);
-  const [areChaptersVisible, setAreChaptersVisible] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // const [isPlaying, setIsPlaying] = useState(false);
+  // const [progress, setProgress] = useState(0);
+  // const [buffered, setBuffered] = useState(0);
+  // const [duration, setDuration] = useState(0);
+  // const [currentTime, setCurrentTime] = useState(0);
+  // const [volume, setVolume] = useState(0.9);
+  // const [lastVolume, setLastVolume] = useState(0.9);
+  // const [isFullScreen, setIsFullScreen] = useState(false);
+  // const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  // const [areSubtitlesEnabled, setAreSubtitlesEnabled] = useState(false);
+  // const [areControlsVisible, setAreControlsVisible] = useState(false);
+  // const [availableQualities, setAvailableQualities] = useState<Level[]>([]);
+  // const [currentQuality, setCurrentQuality] = useState<number>(-1);
+  // const [isMiniPlayer, setIsMiniPlayer] = useState(false);
+  // const [isAutoplayEnabled, setIsAutoplayEnabled] = useState(false);
+  // const [isTooltipVisible, setIsTooltipVisible] = useState(false);
+  // const [tooltipContent, setTooltipContent] = useState('');
+  // const [tooltipPosition, setTooltipPosition] = useState(0);
+  // const [hasStarted, setHasStarted] = useState(false);
+  // const [isTheaterMode, setIsTheaterMode] = useState(false);
+  // const [seekIndicator, setSeekIndicator] = useState<
+  //   'forward' | 'backward' | 'none'
+  // >('none');
+  // const [isBuffering, setIsBuffering] = useState(false);
+  // const [areChaptersVisible, setAreChaptersVisible] = useState(false);
+  // const [error, setError] = useState<string | null>(null);
 
   const currentSrc =
     playlist && playlist.length > 0 ? playlist[currentVideoIndex] : src;
+  const hlsRef = useHls(currentSrc, videoRef.current);
 
   useEffect(() => {
-    const videoElement = videoRef.current;
-    if (!videoElement || !currentSrc) return;
-
-    setIsBuffering(true);
-    setHasStarted(false);
-    setIsPlaying(false);
-    setProgress(0);
-    setBuffered(0);
-    setCurrentTime(0);
-    setDuration(0);
-
-    if (hlsRef.current) {
-      hlsRef.current.destroy();
-    }
-
-    if (Hls.isSupported()) {
-      const hls = new Hls();
-      hlsRef.current = hls;
-      hls.loadSource(currentSrc);
-      hls.attachMedia(videoElement);
-      hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
-        setAvailableQualities([...data.levels]);
-
-        // videoElement.play();
-      });
-
-      hls.on(Hls.Events.ERROR, (event, data) => {
-        if (data.fatal) {
-          switch (data.type) {
-            case Hls.ErrorTypes.NETWORK_ERROR:
-              setError('This video could not be loaded.');
-
-              hls.destroy();
-              break;
-
-            case Hls.ErrorTypes.MEDIA_ERROR:
-              setError('An error occurred while playing the video.');
-              hls.recoverMediaError();
-              break;
-
-            default:
-              setError('An unexpected error occurred.');
-              hls.destroy();
-              break;
-          }
-        }
-      });
-    } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-      videoElement.src = currentSrc;
-      // videoElement.addEventListener('loadedmetadata', () => {
-      //   videoElement.play();
-      // });
-    }
-
-    return () => {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      }
-    };
+    resetPlayerState();
   }, [currentSrc]);
 
   const handleNext = useCallback(() => {
