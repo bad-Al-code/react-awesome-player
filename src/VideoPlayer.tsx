@@ -2,7 +2,13 @@
 
 import type { Level } from 'hls.js';
 import Hls from 'hls.js';
-import { ChevronLeft, ChevronRight, Loader2, Play } from 'lucide-react';
+import {
+  AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  Play,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChaptersSidebar } from './ChapterSidebar';
@@ -62,6 +68,7 @@ export function VideoPlayer({
   >('none');
   const [isBuffering, setIsBuffering] = useState(false);
   const [areChaptersVisible, setAreChaptersVisible] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const currentSrc =
     playlist && playlist.length > 0 ? playlist[currentVideoIndex] : src;
@@ -92,11 +99,33 @@ export function VideoPlayer({
 
         // videoElement.play();
       });
+
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              setError('This video could not be loaded.');
+
+              hls.destroy();
+              break;
+
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              setError('An error occurred while playing the video.');
+              hls.recoverMediaError();
+              break;
+
+            default:
+              setError('An unexpected error occurred.');
+              hls.destroy();
+              break;
+          }
+        }
+      });
     } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
       videoElement.src = currentSrc;
-      videoElement.addEventListener('loadedmetadata', () => {
-        // videoElement.play();
-      });
+      // videoElement.addEventListener('loadedmetadata', () => {
+      //   videoElement.play();
+      // });
     }
 
     return () => {
@@ -677,9 +706,17 @@ export function VideoPlayer({
             )}
           </div>
 
-          {isBuffering && hasStarted && (
+          {isBuffering && hasStarted && !error && (
             <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
               <Loader2 className="h-12 w-12 animate-spin text-muted/70" />
+            </div>
+          )}
+
+          {error && (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-black text-white">
+              <AlertTriangle className="h-10 w-10 text-red-500" />
+              <p className="font-semibold">Video Error</p>
+              <p className="text-sm text-gray-400">{error}</p>
             </div>
           )}
 
@@ -691,7 +728,7 @@ export function VideoPlayer({
             />
           )}
 
-          {!hasStarted && (
+          {!hasStarted && !error && (
             <div className="absolute inset-0 z-10 flex items-center justify-center">
               <button
                 onClick={togglePlay}
