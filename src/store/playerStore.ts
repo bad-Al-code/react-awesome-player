@@ -22,6 +22,10 @@ interface PlayerState {
   isTheaterMode: boolean;
   isBuffering: boolean;
   error: string | null;
+  isTooltipVisible: boolean;
+  tooltipContent: string;
+  tooltipPosition: number;
+  areChaptersVisible: boolean;
 }
 
 interface PlayerActions {
@@ -40,6 +44,11 @@ interface PlayerActions {
   setIsTheaterMode: (isTheaterMode: boolean) => void;
   setIsBuffering: (isBuffering: boolean) => void;
   setError: (error: string | null) => void;
+  setIsTooltipVisible: (isVisible: boolean) => void;
+  setTooltipContent: (content: string) => void;
+  setTooltipPosition: (position: number) => void;
+  toggleChapters: () => void;
+  setAreSubtitlesEnabled: (isEnabled: boolean) => void;
 
   setVolume: (newVolume: number) => void;
   setPlaybackSpeed: (speed: number) => void;
@@ -69,6 +78,10 @@ const initialState: PlayerState = {
   isTheaterMode: false,
   isBuffering: false,
   error: null,
+  isTooltipVisible: false,
+  tooltipContent: '',
+  tooltipPosition: 0,
+  areChaptersVisible: false,
 };
 
 export const usePlayerStore = create<PlayerState & PlayerActions>(
@@ -92,6 +105,13 @@ export const usePlayerStore = create<PlayerState & PlayerActions>(
     setIsTheaterMode: (isTheaterMode) => set({ isTheaterMode }),
     setIsBuffering: (isBuffering) => set({ isBuffering }),
     setError: (error) => set({ error }),
+    setIsTooltipVisible: (isVisible) => set({ isTooltipVisible: isVisible }),
+    setTooltipContent: (content) => set({ tooltipContent: content }),
+    setTooltipPosition: (position) => set({ tooltipPosition: position }),
+    toggleChapters: () =>
+      set((state) => ({ areChaptersVisible: !state.areChaptersVisible })),
+    setAreSubtitlesEnabled: (isEnabled) =>
+      set({ areSubtitlesEnabled: isEnabled }),
 
     setVolume: (newVolume) => {
       const clampedVolume = Math.max(0, Math.min(1, newVolume));

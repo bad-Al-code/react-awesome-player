@@ -10,7 +10,9 @@ import {
 import React, { useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ChaptersSidebar } from './ChapterSidebar';
+import { useCumulativeSeek } from './hooks/useCumulativeSeek';
 import { useHls } from './hooks/useHls';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { usePlayerState } from './hooks/usePlayerState';
 import { usePlayerUI } from './hooks/usePlayerUI';
 import { cn } from './lib/utils';
@@ -39,104 +41,164 @@ export function VideoPlayer({
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
+
   const state = usePlayerStore();
-  const {
-    togglePlay,
-    setVolume,
-    setPlaybackSpeed,
-    toggleMute,
-    toggleAutoplay,
-    setIsSettingsOpen,
-    setCurrentQuality,
-  } = usePlayerStore.getState();
+  const actions = usePlayerStore.getState();
 
   const currentSrc =
-    playlist && playlist.length > 0 ? playlist[currentVideoIndex] : src;
+    playlist?.length > 0
+      ? typeof playlist[currentVideoIndex] === 'string'
+        ? (playlist[currentVideoIndex] as string)
+        : (playlist[currentVideoIndex] as { src: string }).src
+      : src;
+
   const hlsRef = useHls(currentSrc, videoRef.current);
-  const { isAutoplayEnabled } = usePlayerStore();
-
-  useEffect(() => {
-    resetPlayerState();
-  }, [currentSrc]);
-
-  const handleNext = useCallback(() => {
-    const nextIndex = currentVideoIndex + 1;
-    if (playlist && nextIndex < playlist.length) {
-      onVideoChange(nextIndex);
-    }
-  }, [currentVideoIndex, playlist, onVideoChange]);
-
-  const handleVideoEnded = useCallback(() => {
-    if (isAutoplayEnabled) {
-      handleNext();
-    }
-  }, [isAutoplayEnabled, handleNext]);
-
-  const handlePrevious = useCallback(() => {
-    const prevIndex = currentVideoIndex - 1;
-    if (playlist && prevIndex >= 0) {
-      onVideoChange(prevIndex);
-    }
-  }, [currentVideoIndex, playlist, onVideoChange]);
-
-  usePlayerState(videoRef.current, handleVideoEnded);
-
   const {
     handleMouseMove,
     handleMouseLeave,
     handleTimelineHover,
     handleTimelineMouseLeave,
   } = usePlayerUI();
+  const {
+    handleSeekForward,
+    handleSeekBackward,
+    seekIndicator,
+    cumulativeSeek,
+  } = useCumulativeSeek(videoRef, state.duration);
 
-  const handleSeekDoubleTap = (direction: 'forward' | 'backward') => {
-    if (!videoRef.current) return;
+  useEffect(() => {
+    resetPlayerState();
+  }, [currentSrc]);
 
-    const seekAmount = direction === 'forward' ? 10 : -10;
-    seekRelative(seekAmount);
-
-    setSeekIndicator(direction);
-
-    if (seekIndicatorTimeoutRef.current) {
-      clearTimeout(seekIndicatorTimeoutRef.current);
+  const handleNext = useCallback(() => {
+    if (playlist && currentVideoIndex < playlist.length - 1) {
+      onVideoChange(currentVideoIndex + 1);
     }
+  }, [currentVideoIndex, playlist, onVideoChange]);
 
-    seekIndicatorTimeoutRef.current = setTimeout(() => {
-      setSeekIndicator('none');
-    }, 600);
-  };
+  const handlePrevious = useCallback(() => {
+    if (playlist && currentVideoIndex > 0) {
+      onVideoChange(currentVideoIndex - 1);
+    }
+  }, [currentVideoIndex, playlist, onVideoChange]);
 
-  const handleClickArea = (direction?: 'forward' | 'backward') => {
-    if (clickTimeoutRef.current) {
-      clearTimeout(clickTimeoutRef.current);
-      clickTimeoutRef.current = null;
+  const handleVideoEnded = useCallback(() => {
+    if (state.isAutoplayEnabled) handleNext();
+  }, [state.isAutoplayEnabled, handleNext]);
 
-      if (direction) {
-        handleSeekDoubleTap(direction);
-      }
+  usePlayerState(videoRef.current, handleVideoEnded);
+
+  const toggleFullScreen = useCallback(() => {
+    const playerContainer = playerContainerRef.current;
+    if (!playerContainer) return;
+
+    if (!document.fullscreenElement) {
+      playerContainer
+        .requestFullscreen()
+        .catch((err) =>
+          console.error(`Error enabling full-screen: ${err.message}`),
+        );
     } else {
-      clickTimeoutRef.current = setTimeout(() => {
-        clickTimeoutRef.current = null;
-
-        togglePlay();
-      }, 250);
-    }
-  };
-
-  const currentChapter = [...chapters]
-    .reverse()
-    .find((chapter) => chapter.time <= currentTime);
-
-  const handleSeekTo = useCallback((time: number) => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = time;
-
-      setAreChaptersVisible(false);
+      document.exitFullscreen();
     }
   }, []);
 
-  const toggleChapters = () => {
-    setAreChaptersVisible((prev) => !prev);
-  };
+  const toggleSubtitles = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || subtitles.length === 0) return;
+
+    const newSubtitleState = !state.areSubtitlesEnabled;
+
+    for (let i = 0; i < video.textTracks.length; i++) {
+      video.textTracks[i].mode =
+        newSubtitleState && i === 0 ? 'showing' : 'hidden';
+    }
+
+    actions.setAreSubtitlesEnabled(newSubtitleState);
+  }, [state.areSubtitlesEnabled, subtitles.length, actions]);
+
+  const handleToggleTheaterMode = useCallback(() => {
+    if (theaterModeEnabled) {
+      actions.setIsTheaterMode(!state.isTheaterMode);
+    }
+  }, [theaterModeEnabled, state.isTheaterMode, actions]);
+
+  const toggleMiniPlayer = useCallback(async () => {
+    const video = videoRef.current;
+    if (!video || !document.pictureInPictureEnabled) return;
+
+    try {
+      if (document.pictureInPictureElement)
+        await document.exitPictureInPicture();
+      else await video.requestPictureInPicture();
+    } catch (error) {
+      console.error('Error toggling PiP mode:', error);
+    }
+  }, []);
+
+  const seekToPercentage = useCallback(
+    (percentage: number) => {
+      if (videoRef.current) {
+        videoRef.current.currentTime = state.duration * (percentage / 100);
+      }
+    },
+    [state.duration],
+  );
+
+  useKeyboardShortcuts({
+    togglePlay: actions.togglePlay,
+    handleNext,
+    handlePrevious,
+    toggleMute: actions.toggleMute,
+    toggleFullScreen,
+    toggleSubtitles,
+    toggleTheaterMode: handleToggleTheaterMode,
+    toggleMiniPlayer,
+    seekForward: handleSeekForward,
+    seekBackward: handleSeekBackward,
+    increaseVolume: () => actions.setVolume(state.volume + 0.05),
+    decreaseVolume: () => actions.setVolume(state.volume - 0.05),
+    seekToPercentage,
+  });
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const handleEnterPiP = () => actions.setIsMiniPlayer(true);
+    const handleLeavePiP = () => actions.setIsMiniPlayer(false);
+
+    video.addEventListener('enterpictureinpicture', handleEnterPiP);
+    video.addEventListener('leavepictureinpicture', handleLeavePiP);
+
+    return () => {
+      video.removeEventListener('enterpictureinpicture', handleEnterPiP);
+      video.removeEventListener('leavepictureinpicture', handleLeavePiP);
+    };
+  }, [actions]);
+
+  useEffect(() => {
+    const handleFullScreenChange = () =>
+      actions.setIsFullScreen(!!document.fullscreenElement);
+
+    document.addEventListener('fullscreenchange', handleFullScreenChange);
+
+    return () =>
+      document.removeEventListener('fullscreenchange', handleFullScreenChange);
+  }, [actions]);
+
+  const currentChapter = [...chapters]
+    .reverse()
+    .find((chapter) => chapter.time <= state.currentTime);
+
+  const handleSeekTo = useCallback(
+    (time: number) => {
+      if (videoRef.current) {
+        videoRef.current.currentTime = time;
+        actions.toggleChapters();
+      }
+    },
+    [actions],
+  );
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
     if (videoRef.current) {
@@ -144,275 +206,19 @@ export function VideoPlayer({
       const rect = timeline.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
       const seekFraction = clickX / rect.width;
-      const seekTime = seekFraction * duration;
-      videoRef.current.currentTime = seekTime;
-      setProgress(seekFraction * 100);
-      setCurrentTime(seekTime);
+
+      videoRef.current.currentTime = seekFraction * state.duration;
     }
   };
 
-  const handleVolumeChange = useCallback((newVolume: number) => {
-    const clampedVolume = Math.max(0, Math.min(1, newVolume));
-    setVolume(clampedVolume);
-    if (videoRef.current) videoRef.current.volume = clampedVolume;
-  }, []);
-
-  const toggleFullScreen = useCallback(() => {
-    const playerContainer = playerContainerRef.current;
-    if (!playerContainer) return;
-    if (!document.fullscreenElement) {
-      playerContainer.requestFullscreen().catch((err) => {
-        console.error(
-          `Error attempting to enable full-screen mode: ${err.message} (${err.name})`,
-        );
-      });
-    } else {
-      document.exitFullscreen();
-    }
-  }, []);
-
-  const toggleSettings = () => setIsSettingsOpen(!isSettingsOpen);
-
-  const handlePlaybackSpeedChange = (speed: number) => {
-    if (videoRef.current) {
-      videoRef.current.playbackRate = speed;
-      setPlaybackSpeed(speed);
-      setIsSettingsOpen(false);
-    }
+  const toggleSettings = () => {
+    actions.setIsSettingsOpen(!state.isSettingsOpen);
   };
 
-  const toggleSubtitles = useCallback(() => {
-    const video = videoRef.current;
-    if (!video || subtitles.length === 0) return;
-
-    const newSubtitleState = !areSubtitlesEnabled;
-    for (let i = 0; i < video.textTracks.length; i++) {
-      video.textTracks[i].mode =
-        newSubtitleState && i === 0 ? 'showing' : 'hidden';
-    }
-    setAreSubtitlesEnabled(newSubtitleState);
-  }, [areSubtitlesEnabled, subtitles.length]);
-
-  const handleToggleTheaterMode = useCallback(() => {
-    if (theaterModeEnabled) {
-      setIsTheaterMode((prev) => !prev);
-    }
-  }, [theaterModeEnabled]);
-
-  const toggleMiniPlayer = useCallback(async () => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (!document.pictureInPictureEnabled) {
-      console.warn('Picture-in-Picture is not supported in this browser.');
-      return;
-    }
-    try {
-      if (document.pictureInPictureElement) {
-        await document.exitPictureInPicture();
-        setIsMiniPlayer(false);
-      } else {
-        await video.requestPictureInPicture();
-        setIsMiniPlayer(true);
-      }
-    } catch (error) {
-      console.error('Error toggling Picture-in-Picture mode:', error);
-    }
-  }, []);
-
-  const seekRelative = useCallback(
-    (delta: number) => {
-      if (videoRef.current) {
-        const newTime = videoRef.current.currentTime + delta;
-        videoRef.current.currentTime = Math.max(0, Math.min(duration, newTime));
-      }
-    },
-    [duration],
-  );
-
-  const seekToPercentage = useCallback(
-    (percentage: number) => {
-      if (videoRef.current) {
-        videoRef.current.currentTime = duration * (percentage / 100);
-      }
-    },
-    [duration],
-  );
-
-  const handleQualityChange = (levelIndex: number) => {
-    if (hlsRef.current) {
-      hlsRef.current.currentLevel = levelIndex;
-      setCurrentQuality(levelIndex);
-    }
-    setIsSettingsOpen(false);
-  };
-
-  useEffect(() => {
-    if (!theaterModeEnabled) return;
-
-    if (isTheaterMode) {
-      document.body.classList.add('theater-mode-active');
-    } else {
-      document.body.classList.remove('theater-mode-active');
-    }
-
-    return () => {
-      document.body.classList.remove('theater-mode-active');
-    };
-  }, [isTheaterMode, theaterModeEnabled]);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    const handleLeavePiP = () => setIsMiniPlayer(false);
-    video.addEventListener('leavepictureinpicture', handleLeavePiP);
-    return () =>
-      video.removeEventListener('leavepictureinpicture', handleLeavePiP);
-  }, []);
-
-  useEffect(() => {
-    const handleFullScreenChange = () =>
-      setIsFullScreen(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', handleFullScreenChange);
-    return () =>
-      document.removeEventListener('fullscreenchange', handleFullScreenChange);
-  }, []);
-
-  useEffect(() => {
-    if (!isSettingsOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsSettingsOpen(false);
-    };
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        playerContainerRef.current &&
-        !playerContainerRef.current.contains(e.target as Node)
-      ) {
-        setIsSettingsOpen(false);
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isSettingsOpen]);
-
-  useEffect(() => {
-    if (isPlaying) {
-      resetInactivityTimer();
-    } else {
-      setAreControlsVisible(true);
-      if (inactivityTimerRef.current) {
-        clearTimeout(inactivityTimerRef.current);
-      }
-    }
-  }, [isPlaying, isSettingsOpen, resetInactivityTimer]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      switch (e.key) {
-        case ' ':
-        case 'k':
-        case 'K':
-          e.preventDefault();
-          togglePlay();
-          break;
-        case 'N':
-          handleNext();
-          break;
-        case 'P':
-          handlePrevious();
-          break;
-        case 'm':
-        case 'M':
-          toggleMute();
-          break;
-        case 'f':
-        case 'F':
-          toggleFullScreen();
-          break;
-        case 'c':
-        case 'C':
-          toggleSubtitles();
-          break;
-        case 't':
-        case 'T':
-          handleToggleTheaterMode();
-          break;
-        case 'i':
-        case 'I':
-          toggleMiniPlayer();
-          break;
-        case 'ArrowRight':
-          seekRelative(5);
-          break;
-        case 'ArrowLeft':
-          seekRelative(-5);
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          handleVolumeChange(volume + 0.05);
-          break;
-        case 'ArrowDown':
-          e.preventDefault();
-          handleVolumeChange(volume - 0.05);
-          break;
-        case '1':
-          seekToPercentage(10);
-          break;
-        case '2':
-          seekToPercentage(20);
-          break;
-        case '3':
-          seekToPercentage(30);
-          break;
-        case '4':
-          seekToPercentage(40);
-          break;
-        case '5':
-          seekToPercentage(50);
-          break;
-        case '6':
-          seekToPercentage(60);
-          break;
-        case '7':
-          seekToPercentage(70);
-          break;
-        case '8':
-          seekToPercentage(80);
-          break;
-        case '9':
-          seekToPercentage(90);
-          break;
-        case '0':
-          seekToPercentage(0);
-          break;
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [
-    handleNext,
-    handlePrevious,
-    togglePlay,
-    toggleMute,
-    toggleFullScreen,
-    toggleSubtitles,
-    handleToggleTheaterMode,
-    toggleMiniPlayer,
-    seekRelative,
-    seekToPercentage,
-    volume,
-    handleVolumeChange,
-  ]);
-
+  const hlsInstance = hlsRef.current;
   const currentQualityLabel =
     state.currentQuality === -1
-      ? `Auto (${hlsRef.current?.levels[hlsRef.current?.currentLevel]?.height ?? '...'}p)`
+      ? `Auto (${hlsInstance?.levels[hlsInstance?.currentLevel]?.height ?? '...'}p)`
       : `${state.availableQualities[state.currentQuality]?.height}p`;
 
   return (
@@ -420,7 +226,6 @@ export function VideoPlayer({
       {state.isTheaterMode && (
         <TheaterBackdrop onClick={handleToggleTheaterMode} />
       )}
-
       <div
         ref={playerContainerRef}
         className={cn(
@@ -434,7 +239,7 @@ export function VideoPlayer({
         onMouseLeave={handleMouseLeave}
         tabIndex={0}
       >
-        <div className="relative aspect-video w-full bg-black overflow-hidden">
+        <div className="relative aspect-video w-full overflow-hidden bg-black">
           {title && (
             <div
               className={cn(
@@ -450,7 +255,6 @@ export function VideoPlayer({
             ref={videoRef}
             className={`h-full w-full ${state.isMiniPlayer ? 'invisible' : ''}`}
             playsInline
-            // onClick={hasStarted ? togglePlay : undefined}
             onDoubleClick={toggleFullScreen}
             crossOrigin="anonymous"
             autoPlay={false}
@@ -472,78 +276,71 @@ export function VideoPlayer({
           <div className="absolute inset-0 z-10 grid grid-cols-2">
             <div
               className="h-full w-full"
-              onClick={() => handleClickArea('backward')}
+              onDoubleClick={handleSeekBackward}
+              onClick={actions.togglePlay}
             />
+
             <div
               className="h-full w-full"
-              onClick={() => handleClickArea('forward')}
+              onDoubleClick={handleSeekForward}
+              onClick={actions.togglePlay}
             />
           </div>
 
           <div
-            className={`pointer-events-none absolute inset-0 flex items-center justify-center 
-    transition-all duration-500 ease-out
-    ${seekIndicator !== 'none' ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}
-  `}
+            className={`pointer-events-none absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out ${
+              seekIndicator !== 'none'
+                ? 'opacity-100 scale-100'
+                : 'opacity-0 scale-90'
+            }`}
           >
             {seekIndicator === 'backward' && (
-              <div className="absolute inset-y-0 left-0 flex w-1/2 items-center justify-start pl-3 sm:pl-6 pointer-events-none">
-                <div className="flex flex-col items-center text-white">
-                  <div
-                    className="flex flex-col items-center justify-center 
-            w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 
-            rounded-full bg-black/50 seek-glow seek-pop"
-                  >
-                    <div className="flex">
-                      <ChevronLeft className="h-4 w-4 sm:h-6 sm:w-6 md:h-8 md:w-10 arrow-animate" />
-                      <ChevronLeft className="h-4 w-4 -ml-1 sm:h-6 sm:w-6 sm:-ml-2 md:h-8 md:w-10 arrow-animate arrow-delay" />
-                      <ChevronLeft className="h-4 w-4 -ml-1 sm:h-6 sm:w-6 sm:-ml-2 md:h-8 md:w-10 arrow-animate arrow-delay" />
-                    </div>
-                    <span className="text-xs sm:text-sm md:text-base font-bold drop-shadow">
-                      10s
-                    </span>
-                  </div>
+              <div className="flex flex-col items-center text-white">
+                <div className="flex">
+                  <ChevronLeft className="h-8 w-8" />
+                  <ChevronLeft className="h-8 w-8 -ml-4" />
+                  <ChevronLeft className="h-8 w-8 -ml-4" />
                 </div>
+
+                <span className="text-lg font-semibold">
+                  {Math.abs(cumulativeSeek)}s
+                </span>
               </div>
             )}
 
             {seekIndicator === 'forward' && (
-              <div className="absolute inset-y-0 right-0 flex w-1/2 items-center justify-end pr-3 sm:pr-6 pointer-events-none">
-                <div className="flex flex-col items-center text-white">
-                  <div
-                    className="flex flex-col items-center justify-center 
-            w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 
-            rounded-full bg-black/50 seek-glow seek-pop"
-                  >
-                    <div className="flex">
-                      <ChevronRight className="h-4 w-4 sm:h-6 sm:w-6 md:h-8 md:w-10 arrow-animate" />
-                      <ChevronRight className="h-4 w-4 -ml-1 sm:h-6 sm:w-6 sm:-ml-2 md:h-8 md:w-10 arrow-animate arrow-delay" />
-                      <ChevronRight className="h-4 w-4 -ml-1 sm:h-6 sm:w-6 sm:-ml-2 md:h-8 md:w-10 arrow-animate arrow-delay" />
-                    </div>
-                    <span className="text-xs sm:text-sm md:text-base font-bold drop-shadow">
-                      10s
-                    </span>
-                  </div>
+              <div className="flex flex-col items-center text-white">
+                <div className="flex">
+                  <ChevronRight className="h-8 w-8" />
+                  <ChevronRight className="h-8 w-8 -ml-4" />
+                  <ChevronRight className="h-8 w-8 -ml-4" />
                 </div>
+
+                <span className="text-lg font-semibold">{cumulativeSeek}s</span>
               </div>
             )}
           </div>
 
-          {isBuffering && hasStarted && !error && (
-            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-              <Loader2 className="h-12 w-12 animate-spin text-muted/70" />
+          {state.isBuffering && state.hasStarted && !state.error && (
+            <div
+              role="status"
+              className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center"
+            >
+              <Loader2 className="h-12 w-12 animate-spin text-white/70" />
             </div>
           )}
 
-          {error && (
+          {state.error && (
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-black text-white">
               <AlertTriangle className="h-10 w-10 text-red-500" />
+
               <p className="font-semibold">Video Error</p>
-              <p className="text-sm text-gray-400">{error}</p>
+
+              <p className="text-sm text-gray-400">{state.error}</p>
             </div>
           )}
 
-          {!hasStarted && poster && (
+          {!state.hasStarted && poster && (
             <img
               src={poster}
               alt={title || 'Video poster'}
@@ -551,15 +348,15 @@ export function VideoPlayer({
             />
           )}
 
-          {!hasStarted && !error && (
+          {!state.hasStarted && !state.error && (
             <div className="absolute inset-0 z-10 flex items-center justify-center">
               <button
-                onClick={togglePlay}
-                className="cursor-pointer rounded-full bg-accent-foreground/50 p-2 text-white transition-colors duration-300 hover:bg-accent-foreground/60 sm:p-4"
+                onClick={actions.togglePlay}
+                className="cursor-pointer rounded-full bg-black/50 p-4 text-white transition-colors duration-300 hover:bg-black/70"
                 aria-label="Play video"
                 title="Play video"
               >
-                <Play className="fill-accent h-6 w-6 pl-0.5 sm:h-10 sm:w-10 sm:pl-1" />
+                <Play className="h-12 w-12 fill-white pl-1" />
               </button>
             </div>
           )}
@@ -573,57 +370,43 @@ export function VideoPlayer({
           {state.isSettingsOpen && (
             <SettingsMenu
               playbackSpeed={state.playbackSpeed}
-              onSpeedChange={setPlaybackSpeed}
+              onSpeedChange={actions.setPlaybackSpeed}
               availableQualities={state.availableQualities}
               currentQuality={state.currentQuality}
-              onQualityChange={setCurrentQuality}
+              onQualityChange={actions.setCurrentQuality}
               currentQualityLabel={currentQualityLabel}
             />
           )}
 
-          {areChaptersVisible && (
+          {state.areChaptersVisible && (
             <ChaptersSidebar
               chapters={chapters}
               currentTime={state.currentTime}
               onSeekTo={handleSeekTo}
-              onClose={toggleChapters}
+              onClose={actions.toggleChapters}
             />
           )}
 
           <PlayerControls
-            isPlaying={state.isPlaying}
-            onPlayPause={togglePlay}
-            progress={state.progress}
-            buffered={state.buffered}
-            duration={state.duration}
-            currentTime={state.currentTime}
+            {...state}
+            isVisible={state.areControlsVisible && state.hasStarted}
+            onPlayPause={actions.togglePlay}
             onSeek={handleSeek}
-            volume={state.volume}
-            onVolumeChange={handleVolumeChange}
-            toggleMute={toggleMute}
-            isFullScreen={state.isFullScreen}
+            onVolumeChange={actions.setVolume}
+            toggleMute={actions.toggleMute}
             toggleFullScreen={toggleFullScreen}
             toggleSettings={toggleSettings}
             toggleSubtitles={toggleSubtitles}
-            areSubtitlesEnabled={state.areSubtitlesEnabled}
             toggleMiniPlayer={toggleMiniPlayer}
-            isVisible={state.areControlsVisible && state.hasStarted}
             onNext={handleNext}
             onPrevious={handlePrevious}
-            toggleAutoplay={toggleAutoplay}
-            isAutoplayEnabled={isAutoplayEnabled}
-            isTooltipVisible={isTooltipVisible}
-            tooltipContent={tooltipContent}
-            tooltipPosition={tooltipPosition}
+            toggleAutoplay={actions.toggleAutoplay}
             onTimelineHover={handleTimelineHover}
             onTimelineMouseLeave={handleTimelineMouseLeave}
             toggleTheaterMode={handleToggleTheaterMode}
-            isTheaterMode={state.isTheaterMode}
-            chapters={chapters}
             onSeekTo={handleSeekTo}
             currentChapter={currentChapter?.label}
-            onToggleChapters={toggleChapters}
-            areChaptersVisible={areChaptersVisible}
+            onToggleChapters={actions.toggleChapters}
           />
         </div>
       </div>
