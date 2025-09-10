@@ -11,10 +11,11 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ChaptersSidebar } from './ChapterSidebar';
 import { useHls } from './hooks/useHls';
+import { usePlayerState } from './hooks/usePlayerState';
 import { cn, formatTime } from './lib/utils';
 import { PlayerControls } from './PlayerControls';
 import { SettingsMenu } from './SettingsMenu';
-import { resetPlayerState } from './store/playerStore';
+import { resetPlayerState, usePlayerStore } from './store/playerStore';
 import type { VideoPlayerProps } from './types';
 
 function TheaterBackdrop({ onClick }: { onClick: () => void }) {
@@ -73,6 +74,7 @@ export function VideoPlayer({
   const currentSrc =
     playlist && playlist.length > 0 ? playlist[currentVideoIndex] : src;
   const hlsRef = useHls(currentSrc, videoRef.current);
+  const { isAutoplayEnabled } = usePlayerStore();
 
   useEffect(() => {
     resetPlayerState();
@@ -85,66 +87,20 @@ export function VideoPlayer({
     }
   }, [currentVideoIndex, playlist, onVideoChange]);
 
+  const handleVideoEnded = useCallback(() => {
+    if (isAutoplayEnabled) {
+      handleNext();
+    }
+  }, [isAutoplayEnabled, handleNext]);
+
+  usePlayerState(videoRef.current, handleVideoEnded);
+
   const handlePrevious = useCallback(() => {
     const prevIndex = currentVideoIndex - 1;
     if (playlist && prevIndex >= 0) {
       onVideoChange(prevIndex);
     }
   }, [currentVideoIndex, playlist, onVideoChange]);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const handleEnded = () => {
-      setIsPlaying(false);
-      if (isAutoplayEnabled) {
-        handleNext();
-      }
-    };
-
-    const handleTimeUpdate = () => {
-      if (video.duration) {
-        setProgress((video.currentTime / video.duration) * 100);
-        setCurrentTime(video.currentTime);
-      }
-    };
-
-    const handleProgress = () => {
-      if (video.buffered.length > 0 && video.duration) {
-        const bufferedEnd = video.buffered.end(video.buffered.length - 1);
-        setBuffered((bufferedEnd / video.duration) * 100);
-      }
-    };
-    const handleLoadedMetadata = () => {
-      setDuration(video.duration);
-    };
-
-    const handleWaiting = () => setIsBuffering(true);
-    const handlePlaying = () => setIsBuffering(false);
-
-    video.addEventListener('timeupdate', handleTimeUpdate);
-    video.addEventListener('progress', handleProgress);
-    video.addEventListener('loadedmetadata', handleLoadedMetadata);
-    video.addEventListener('ended', handleEnded);
-    video.addEventListener('play', () => setIsPlaying(true));
-    video.addEventListener('pause', () => setIsPlaying(false));
-    video.addEventListener('waiting', handleWaiting);
-    video.addEventListener('playing', handlePlaying);
-    video.addEventListener('play', () => setIsPlaying(true));
-    video.addEventListener('pause', () => setIsPlaying(false));
-
-    return () => {
-      video.removeEventListener('timeupdate', handleTimeUpdate);
-      video.removeEventListener('progress', handleProgress);
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      video.removeEventListener('ended', handleEnded);
-      video.removeEventListener('play', () => setIsPlaying(true));
-      video.removeEventListener('pause', () => setIsPlaying(false));
-      video.removeEventListener('waiting', handleWaiting);
-      video.removeEventListener('playing', handlePlaying);
-    };
-  }, [isAutoplayEnabled, handleNext]);
 
   const handleSeekDoubleTap = (direction: 'forward' | 'backward') => {
     if (!videoRef.current) return;
